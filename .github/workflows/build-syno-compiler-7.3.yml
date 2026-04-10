@@ -144,7 +144,7 @@ jobs:
         run: |
           mkdir -p ./opt
           cd ./opt
-          tar -xzf /tmp/toolchain.txz
+          tar -xJf /tmp/toolchain.txz
           cd -
           echo "Toolchain extracted successfully"
           ls -lah ./opt/
