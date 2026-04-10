@@ -61,11 +61,40 @@ jobs:
         run: |
           set -e
           TOOLCHAIN_VERSION="${{ env.TOOLCHAIN_VERSION }}"
-          BASE_URL="https://archive.synology.com/download/ToolChain/toolkit/${TOOLCHAIN_VERSION}"
+          BASE_URL="https://global.synologydownload.com/download/ToolChain/toolkit/${TOOLCHAIN_VERSION}"
+          MAX_RETRIES=3
+          TIMEOUT=30
 
           echo "Downloading Synology Toolkit ${TOOLCHAIN_VERSION}"
           echo "Base URL: ${BASE_URL}"
+          echo "Retries: ${MAX_RETRIES}, Timeout: ${TIMEOUT}s"
           echo ""
+
+          # Function to download file with retries
+          download_file() {
+            local url=$1
+            local output=$2
+            local filename=$(basename "$output")
+            local attempt=1
+
+            while [ $attempt -le $MAX_RETRIES ]; do
+              echo "  [$attempt/${MAX_RETRIES}] Downloading ${filename}..."
+              if curl -f -L --max-time $TIMEOUT -o "$output" "$url"; then
+                SIZE=$(du -h "$output" | cut -f1)
+                echo "  ✓ Downloaded ${SIZE}"
+                return 0
+              fi
+
+              if [ $attempt -lt $MAX_RETRIES ]; then
+                echo "  ⚠ Attempt $attempt failed, retrying..."
+                sleep 2
+              fi
+              ((attempt++))
+            done
+
+            echo "  ✗ Failed after ${MAX_RETRIES} attempts"
+            return 1
+          }
 
           # Download toolkits for each platform
           while IFS=':' read -r PLATFORM KVER; do
@@ -77,17 +106,14 @@ jobs:
             # Download ds.{platform}-{version}.dev.txz
             DEV_FILENAME="ds.${PLATFORM}-${TOOLCHAIN_VERSION}.dev.txz"
             DEV_URL="${BASE_URL}/${PLATFORM}/${DEV_FILENAME}"
-            echo "  Downloading ${DEV_FILENAME}..."
-            if wget -q -O "opt/cache/${DEV_FILENAME}" "${DEV_URL}" 2>/dev/null; then
-              SIZE=$(du -h "opt/cache/${DEV_FILENAME}" | cut -f1)
-              echo "  ✓ Downloaded ${SIZE}"
-            else
+
+            if ! download_file "$DEV_URL" "opt/cache/${DEV_FILENAME}"; then
               echo "  ✗ Failed to download ${DEV_FILENAME}"
               exit 1
             fi
           done <<< "${{ env.PLATFORMS }}"
 
-          # Download linux kernel sources
+          # Download linux kernel sources (optional)
           echo ""
           echo "Downloading Linux kernel sources..."
           KVER_MAJORS="3 4 5"
@@ -95,12 +121,10 @@ jobs:
             LINUX_FILENAME="linux-${KVER_MAJOR}.x.txz"
             LINUX_URL="${BASE_URL}/${LINUX_FILENAME}"
             if [ ! -f "opt/cache/${LINUX_FILENAME}" ]; then
-              echo "  Downloading ${LINUX_FILENAME}..."
-              if wget -q -O "opt/cache/${LINUX_FILENAME}" "${LINUX_URL}" 2>/dev/null; then
-                SIZE=$(du -h "opt/cache/${LINUX_FILENAME}" | cut -f1)
-                echo "  ✓ Downloaded ${SIZE}"
+              if download_file "$LINUX_URL" "opt/cache/${LINUX_FILENAME}"; then
+                true
               else
-                echo "  ⚠ ${LINUX_FILENAME} not found (optional)"
+                echo "  ⚠ ${LINUX_FILENAME} not found (optional, skipping)"
               fi
             fi
           done
