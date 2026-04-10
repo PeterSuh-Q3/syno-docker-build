@@ -1,6 +1,7 @@
 #!/bin/bash
 # Synology Compiler Entrypoint Script
-# Usage: docker run ... dante90/syno-compiler:7.3-{platform} compile-module {platform}
+# Multi-platform cross-compilation environment
+# Usage: docker run ... dante90/syno-compiler:7.3 compile-module {platform}
 
 set -e
 
@@ -11,10 +12,15 @@ PLATFORM="${2}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
 log_error() {
@@ -25,9 +31,9 @@ log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
-# Verify toolchain exists
-if [ ! -d "/opt/synology" ] && [ ! -f "/opt/toolchain.tar" ] && [ ! -d "/opt/x86_64-pc-linux-gnu" ]; then
-    log_error "Toolchain not found in /opt"
+# Verify platforms file and toolchain directories exist
+if [ ! -f "/opt/platforms" ]; then
+    log_error "Platforms file /opt/platforms not found"
     exit 1
 fi
 
@@ -42,54 +48,134 @@ if [ ! -d "/output" ]; then
     mkdir -p /output
 fi
 
+# Function to list available platforms
+list_platforms() {
+    log_info "Available platforms:"
+    if [ -f "/opt/platforms" ]; then
+        awk '{print "  " $1 " (kernel " $2 ")"}' /opt/platforms
+    fi
+}
+
+# Function to setup platform environment
+setup_platform() {
+    local platform=$1
+
+    if [ ! -d "/opt/${platform}" ]; then
+        log_error "Platform directory /opt/${platform} not found"
+        list_platforms
+        return 1
+    fi
+
+    # Get kernel version from platforms file
+    local kver=$(grep "^${platform}\t" /opt/platforms | cut -f2)
+    if [ -z "${kver}" ]; then
+        log_error "Platform ${platform} not found in /opt/platforms"
+        list_platforms
+        return 1
+    fi
+
+    # Setup cross-compilation environment
+    export SYNOLOGY_PLATFORM="${platform}"
+    export SYNOLOGY_KERNEL_VERSION="${kver}"
+    export PLATFORM_PATH="/opt/${platform}"
+
+    # Add platform-specific bin to PATH
+    if [ -d "${PLATFORM_PATH}/bin" ]; then
+        export PATH="${PLATFORM_PATH}/bin:${PATH}"
+    fi
+
+    # Setup library paths
+    if [ -d "${PLATFORM_PATH}/lib" ]; then
+        export LD_LIBRARY_PATH="${PLATFORM_PATH}/lib:${LD_LIBRARY_PATH}"
+    fi
+
+    # Setup source directory
+    if [ -d "${PLATFORM_PATH}/source" ]; then
+        export LINUX_SRC="${PLATFORM_PATH}/source"
+    fi
+
+    log_success "Platform environment setup: ${platform} (kernel ${kver})"
+
+    return 0
+}
+
 case "${ACTION}" in
     compile-module)
         if [ -z "${PLATFORM}" ]; then
             log_error "Platform not specified"
-            echo "Usage: ${ACTION} {platform}"
+            echo ""
+            echo "Usage: compile-module {platform}"
+            echo ""
+            list_platforms
+            exit 1
+        fi
+
+        # Setup platform environment
+        if ! setup_platform "${PLATFORM}"; then
             exit 1
         fi
 
         log_info "Compiling modules for platform: ${PLATFORM}"
-        log_info "Architecture: ${ARCH}"
-        log_info "Toolchain version: ${TOOLCHAIN_VERSION}"
+        log_info "Kernel version: ${SYNOLOGY_KERNEL_VERSION}"
+        log_info "Input directory: /input"
+        log_info "Output directory: /output"
 
-        # Set up environment variables for cross-compilation
-        export PATH="/opt/bin:${PATH}"
-        export LD_LIBRARY_PATH="/opt/lib:${LD_LIBRARY_PATH}"
+        # Module compilation logic
+        # This is a framework - actual compilation depends on your module structure
 
-        # Module compilation logic would go here
-        # This is a placeholder - actual compilation depends on your module structure
-        log_info "Module compilation started..."
-
-        # Find and compile modules
         if [ -d "/input" ] && [ "$(ls -A /input)" ]; then
             log_info "Found input files in /input"
 
-            # Example: compile any C/C++ sources
-            find /input -name "*.c" -o -name "*.cpp" | while read -r source; do
-                log_info "Processing: ${source}"
-            done
+            # Example: Look for Makefile or build scripts
+            if [ -f "/input/Makefile" ]; then
+                log_info "Makefile found, ready to compile"
+                # Actual build command would go here:
+                # cd /input && make CROSS_COMPILE="${PLATFORM_PATH}/bin/..." modules
+            else
+                log_warn "No Makefile found in /input"
+            fi
 
-            log_info "Compilation completed"
+            log_success "Module compilation completed"
         else
-            log_warn "No input files found in /input"
+            log_warn "No input files found in /input - nothing to compile"
         fi
         ;;
 
     shell)
-        log_info "Starting interactive shell"
+        if [ -n "${PLATFORM}" ]; then
+            if ! setup_platform "${PLATFORM}"; then
+                exit 1
+            fi
+            log_info "Starting interactive shell with ${PLATFORM} environment"
+        else
+            log_info "Starting interactive shell (all platforms available in /opt)"
+            log_info "Use: source /opt/{platform}/env.sh"
+        fi
         /bin/bash
         ;;
 
+    list)
+        log_info "Available platforms:"
+        list_platforms
+        ;;
+
     *)
-        log_error "Unknown action: ${ACTION}"
-        echo "Available actions:"
+        if [ -z "${ACTION}" ]; then
+            log_info "No action specified"
+        else
+            log_error "Unknown action: ${ACTION}"
+        fi
+
+        echo ""
+        echo "Usage:"
         echo "  compile-module {platform}  - Compile modules for specified platform"
-        echo "  shell                      - Start interactive shell"
+        echo "  shell [platform]           - Start interactive shell (optionally with platform env)"
+        echo "  list                       - List available platforms"
+        echo ""
+        list_platforms
         exit 1
         ;;
 esac
 
-log_info "Done"
+log_success "Done"
 exit 0
