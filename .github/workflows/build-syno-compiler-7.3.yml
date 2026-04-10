@@ -35,8 +35,8 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Ensure opt directory exists
-        run: mkdir -p opt
+      - name: Create opt/cache directory
+        run: mkdir -p opt/cache
 
       - name: Download Synology Toolkits
         run: |
@@ -88,7 +88,7 @@ jobs:
             DEV_FILENAME="ds.${PLATFORM}-${TOOLCHAIN_VERSION}.dev.txz"
             DEV_URL="${BASE_URL}/${PLATFORM}/${DEV_FILENAME}"
 
-            if ! download_file "$DEV_URL" "opt/${DEV_FILENAME}"; then
+            if ! download_file "$DEV_URL" "opt/cache/${DEV_FILENAME}"; then
               echo "  ✗ Failed to download ${DEV_FILENAME}"
               exit 1
             fi
@@ -96,7 +96,7 @@ jobs:
 
           echo ""
           echo "All downloaded files:"
-          ls -lh opt/
+          ls -lh opt/cache/
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -114,7 +114,7 @@ jobs:
 
       - name: Cleanup cache
         if: always()
-        run: rm -rf opt/ds.*.txz
+        run: rm -rf opt/cache
 
       - name: Create build summary
         if: always()

@@ -9,7 +9,7 @@ ARG PLATFORMS="apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwel
 ARG TOOLKIT_VER="7.3"
 
 # Copy downloaded toolkit files from cache directory
-ADD opt /cache
+ADD opt/cache /cache
 
 # Create /opt directory and extract toolkits
 RUN mkdir -p /opt && \
