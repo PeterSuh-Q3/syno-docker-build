@@ -30,12 +30,13 @@ on:
       push_latest:
         description: 'Also tag as latest'
         required: false
-        default: 'apollolake'
+        default: 'epyc7002'
         type: choice
         options:
-          - 'none'
-          - 'apollolake'
-          - 'broadwell'
+          - 'epyc7002'
+          - 'geminilakenk'
+          - 'r1000nk'
+          - 'v1000nk'
 
 env:
   REGISTRY: docker.io
