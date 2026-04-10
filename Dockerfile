@@ -5,7 +5,7 @@
 
 # Stage 1: Extract and prepare toolkits
 FROM alpine:3.19 AS stage
-ARG PLATFORMS="apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 epyc7002:5.10.55 geminilake:4.4.302 geminilakenk:5.10.55 kvmx64:4.4.302 purley:4.4.302 r1000:4.4.302 r1000nk:5.10.55 v1000:4.4.302 v1000nk:5.10.55"
+ARG PLATFORMS="apollolake broadwell broadwellnk broadwellnkv2 broadwellntbap denverton epyc7002 geminilake geminilakenk kvmx64 purley r1000 r1000nk v1000 v1000nk"
 ARG TOOLKIT_VER="7.3"
 
 # Copy downloaded toolkit files from cache directory
