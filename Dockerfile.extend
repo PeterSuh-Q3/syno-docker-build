@@ -1,0 +1,33 @@
+# Dockerfile.extend - Add additional platforms to base image
+# Used by Job 2 to extend the 7.3-base image with kernel 4.4 platforms
+
+ARG BASE_IMAGE=dante90/syno-compiler:7.3-base
+FROM ${BASE_IMAGE}
+
+ARG PLATFORMS="apollolake broadwell broadwellnk broadwellnkv2 broadwellntbap denverton geminilake kvmx64 purley r1000 v1000"
+ARG TOOLKIT_VER="7.3"
+
+USER root
+
+# Copy toolkit archives
+ADD opt/cache /cache
+
+# Extract toolkits and append to platforms list
+RUN for PLATFORM in ${PLATFORMS}; do \
+      echo "Processing platform: ${PLATFORM}"; \
+      echo "${PLATFORM}" >> /opt/platforms && \
+      mkdir -p "/opt/${PLATFORM}" && \
+      if [ -f "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" ]; then \
+        echo "Extracting ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" && \
+        tar -xaf "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" -C "/opt/${PLATFORM}" --strip-components=1; \
+      else \
+        echo "Warning: ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz not found"; \
+      fi; \
+    done && \
+    rm -rf /cache && \
+    chown -R 1000:1000 /opt
+
+USER arpl
+WORKDIR /input
+ENTRYPOINT ["/opt/do.sh"]
+CMD [""]

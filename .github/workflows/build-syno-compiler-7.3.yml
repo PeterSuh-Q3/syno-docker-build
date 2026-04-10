@@ -13,15 +13,16 @@ env:
   REGISTRY: docker.io
   REPOSITORY: dante90/syno-compiler
   TOOLCHAIN_VERSION: 7.3
-  PLATFORMS: "apollolake broadwell broadwellnk broadwellnkv2 broadwellntbap denverton epyc7002 geminilake geminilakenk kvmx64 purley r1000 r1000nk v1000 v1000nk"
+  PLATFORMS_K5: "epyc7002 geminilakenk r1000nk v1000nk"
+  PLATFORMS_K4: "apollolake broadwell broadwellnk broadwellnkv2 broadwellntbap denverton geminilake kvmx64 purley r1000 v1000"
 
 jobs:
-  build-and-push:
+  # Job 1: Build kernel 5.10 platforms -> push as 7.3-base
+  build-k5:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     permissions:
       contents: read
-
-    timeout-minutes: 120
 
     steps:
       - name: Free up disk space
@@ -46,7 +47,7 @@ jobs:
       - name: Create opt/cache directory
         run: mkdir -p opt/cache
 
-      - name: Download Synology Toolkits
+      - name: Download kernel 5.10 toolkits
         run: |
           set -e
           TOOLCHAIN_VERSION="${{ env.TOOLCHAIN_VERSION }}"
@@ -54,120 +55,134 @@ jobs:
           MAX_RETRIES=3
           TIMEOUT=30
 
-          echo "Downloading Synology Toolkit ${TOOLCHAIN_VERSION}"
-          echo "Base URL: ${BASE_URL}"
-          echo "Retries: ${MAX_RETRIES}, Timeout: ${TIMEOUT}s"
-          echo ""
-
-          # Function to download file with retries
           download_file() {
-            local url=$1
-            local output=$2
-            local filename=$(basename "$output")
-            local attempt=1
-
+            local url=$1 output=$2 filename=$(basename "$output") attempt=1
             while [ $attempt -le $MAX_RETRIES ]; do
               echo "  [$attempt/${MAX_RETRIES}] Downloading ${filename}..."
               if curl -f -L --max-time $TIMEOUT -o "$output" "$url"; then
-                SIZE=$(du -h "$output" | cut -f1)
-                echo "  ✓ Downloaded ${SIZE}"
+                echo "  ✓ Downloaded $(du -h "$output" | cut -f1)"
                 return 0
               fi
-
-              if [ $attempt -lt $MAX_RETRIES ]; then
-                echo "  ⚠ Attempt $attempt failed, retrying..."
-                sleep 2
-              fi
+              [ $attempt -lt $MAX_RETRIES ] && echo "  ⚠ Attempt $attempt failed, retrying..." && sleep 2
               ((attempt++))
             done
-
             echo "  ✗ Failed after ${MAX_RETRIES} attempts"
             return 1
           }
 
-          # Download toolkits for each platform
-          for V in ${{ env.PLATFORMS }}; do
-            IFS=':' read -r PLATFORM <<< "$V"
-            [ -z "$PLATFORM" ] && continue
-
+          echo "=== Downloading kernel 5.10 platforms ==="
+          for PLATFORM in ${{ env.PLATFORMS_K5 }}; do
             echo "Processing platform: $PLATFORM"
-
-            # Download ds.{platform}-{version}.dev.txz
             DEV_FILENAME="ds.${PLATFORM}-${TOOLCHAIN_VERSION}.dev.txz"
-            DEV_URL="${BASE_URL}/${PLATFORM}/${DEV_FILENAME}"
-
-            if ! download_file "$DEV_URL" "opt/cache/${DEV_FILENAME}"; then
+            if ! download_file "${BASE_URL}/${PLATFORM}/${DEV_FILENAME}" "opt/cache/${DEV_FILENAME}"; then
               echo "  ✗ Failed to download ${DEV_FILENAME}"
               exit 1
             fi
           done
 
           echo ""
-          echo "All downloaded files:"
+          echo "Downloaded files:"
           ls -lh opt/cache/
 
-      - name: Build Docker image
+      - name: Build and push base image (kernel 5.10)
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: ${{ github.event.inputs.push_to_hub == 'true' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }}
-            ${{ github.event.inputs.push_to_hub == 'true' && format('{0}/{1}:latest', env.REGISTRY, env.REPOSITORY) || '' }}
+          tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }}-base
           build-args: |
-            PLATFORMS=${{ env.PLATFORMS }}
+            PLATFORMS=${{ env.PLATFORMS_K5 }}
             TOOLKIT_VER=${{ env.TOOLCHAIN_VERSION }}
           no-cache: true
 
-      - name: Cleanup cache
+      - name: Cleanup
         if: always()
         run: rm -rf opt/cache
 
-      - name: Create build summary
-        if: always()
+  # Job 2: Extend base image with kernel 4.4 platforms -> push as 7.3 + latest
+  build-k4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: build-k5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Free up disk space
         run: |
-          cat > /tmp/build-summary.md << 'EOF'
-          # Synology Compiler 7.3 Build Summary
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          sudo apt-get clean
+          df -h /
 
-          **Status**: ${{ job.status }}
-          **Timestamp**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-          ## Image Details
-          - **Repository**: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}
-          - **Tags**:
-            - ${{ env.TOOLCHAIN_VERSION }}
-            - latest
-          - **Base Image**: debian:12-slim
-          - **Toolkit Version**: ${{ env.TOOLCHAIN_VERSION }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-          ## Supported Platforms (x86_64)
-          ${{ env.PLATFORMS }}
-
-          ## Usage
-          \`\`\`bash
-          # List available platforms
-          docker run --rm ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }} list
-
-          # Compile modules for a specific platform
-          docker run -u $(id -u) --rm -it \
-            -v /path/to/source:/input \
-            -v /path/to/output:/output \
-            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }} \
-            compile-module {platform}
-
-          # Interactive shell with platform environment
-          docker run -u $(id -u) --rm -it \
-            -v /path/to/work:/input \
-            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }} \
-            shell broadwell
-          \`\`\`
-
-          EOF
-          cat /tmp/build-summary.md
-
-      - name: Upload build summary
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Login to Docker Hub
+        if: github.event.inputs.push_to_hub == 'true'
+        uses: docker/login-action@v3
         with:
-          name: build-summary
-          path: /tmp/build-summary.md
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create opt/cache directory
+        run: mkdir -p opt/cache
+
+      - name: Download kernel 4.4 toolkits
+        run: |
+          set -e
+          TOOLCHAIN_VERSION="${{ env.TOOLCHAIN_VERSION }}"
+          BASE_URL="https://global.synologydownload.com/download/ToolChain/toolkit/${TOOLCHAIN_VERSION}"
+          MAX_RETRIES=3
+          TIMEOUT=30
+
+          download_file() {
+            local url=$1 output=$2 filename=$(basename "$output") attempt=1
+            while [ $attempt -le $MAX_RETRIES ]; do
+              echo "  [$attempt/${MAX_RETRIES}] Downloading ${filename}..."
+              if curl -f -L --max-time $TIMEOUT -o "$output" "$url"; then
+                echo "  ✓ Downloaded $(du -h "$output" | cut -f1)"
+                return 0
+              fi
+              [ $attempt -lt $MAX_RETRIES ] && echo "  ⚠ Attempt $attempt failed, retrying..." && sleep 2
+              ((attempt++))
+            done
+            echo "  ✗ Failed after ${MAX_RETRIES} attempts"
+            return 1
+          }
+
+          echo "=== Downloading kernel 4.4 platforms ==="
+          for PLATFORM in ${{ env.PLATFORMS_K4 }}; do
+            echo "Processing platform: $PLATFORM"
+            DEV_FILENAME="ds.${PLATFORM}-${TOOLCHAIN_VERSION}.dev.txz"
+            if ! download_file "${BASE_URL}/${PLATFORM}/${DEV_FILENAME}" "opt/cache/${DEV_FILENAME}"; then
+              echo "  ✗ Failed to download ${DEV_FILENAME}"
+              exit 1
+            fi
+          done
+
+          echo ""
+          echo "Downloaded files:"
+          ls -lh opt/cache/
+
+      - name: Build and push final image (kernel 4.4 + 5.10)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.extend
+          push: ${{ github.event.inputs.push_to_hub == 'true' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }}
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:latest
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.TOOLCHAIN_VERSION }}-base
+            PLATFORMS=${{ env.PLATFORMS_K4 }}
+            TOOLKIT_VER=${{ env.TOOLCHAIN_VERSION }}
+          no-cache: true
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf opt/cache
