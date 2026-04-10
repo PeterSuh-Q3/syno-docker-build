@@ -55,7 +55,7 @@ RUN apt-get update && \
 
 # Copy toolchains and supporting files from stage 1
 COPY --from=stage --chown=1000:1000 /opt /opt
-COPY files/ /
+COPY opt/do.sh /opt/do.sh
 
 # Set permissions
 RUN chmod +x /opt/do.sh && \
