@@ -109,22 +109,6 @@ jobs:
             fi
           done <<< "${{ env.PLATFORMS }}"
 
-          # Download linux kernel sources (optional)
-          echo ""
-          echo "Downloading Linux kernel sources..."
-          KVER_MAJORS="3 4 5"
-          for KVER_MAJOR in $KVER_MAJORS; do
-            LINUX_FILENAME="linux-${KVER_MAJOR}.x.txz"
-            LINUX_URL="${BASE_URL}/${LINUX_FILENAME}"
-            if [ ! -f "opt/cache/${LINUX_FILENAME}" ]; then
-              if download_file "$LINUX_URL" "opt/cache/${LINUX_FILENAME}"; then
-                true
-              else
-                echo "  ⚠ ${LINUX_FILENAME} not found (optional, skipping)"
-              fi
-            fi
-          done
-
           echo ""
           echo "All downloaded files:"
           ls -lh opt/cache/
