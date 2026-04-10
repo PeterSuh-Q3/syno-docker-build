@@ -14,19 +14,15 @@ env:
   REPOSITORY: dante90/syno-compiler
   TOOLCHAIN_VERSION: 7.3
   PLATFORMS: |
-    apollolake:4.4.180
-    avoton:3.10.108
-    braswell:3.10.108
-    broadwell:4.4.180
+    apollolake:4.4.302
+    broadwell:4.4.302
     broadwellnk:4.4.302
     broadwellnkv2:4.4.302
     broadwellntbap:4.4.302
-    bromolow:3.10.108
     denverton:4.4.302
     epyc7002:5.10.55
     geminilake:4.4.302
     geminilakenk:5.10.55
-    grantley:3.10.108
     kvmx64:4.4.302
     purley:4.4.302
     r1000:4.4.302
@@ -165,7 +161,7 @@ jobs:
           - **Tags**:
             - ${{ env.TOOLCHAIN_VERSION }}
             - latest
-          - **Base Image**: debian:9-slim
+          - **Base Image**: debian:12-slim
           - **Toolkit Version**: ${{ env.TOOLCHAIN_VERSION }}
 
           ## Supported Platforms (x86_64)
