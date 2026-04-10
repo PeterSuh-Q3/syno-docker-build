@@ -4,8 +4,8 @@
 
 set -e
 
-PLATFORM="${1}"
-ACTION="${2:-compile-module}"
+ACTION="${1}"
+PLATFORM="${2}"
 
 # Color output
 RED='\033[0;31m'
@@ -46,7 +46,7 @@ case "${ACTION}" in
     compile-module)
         if [ -z "${PLATFORM}" ]; then
             log_error "Platform not specified"
-            echo "Usage: compile-module {platform}"
+            echo "Usage: ${ACTION} {platform}"
             exit 1
         fi
 
