@@ -4,8 +4,8 @@
 # Run: docker run -v /source:/input -v /output:/output dante90/syno-compiler:7.3 compile-module {platform}
 
 # Stage 1: Extract and prepare toolkits
-FROM alpine:3.14 AS stage
-ARG PLATFORMS="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 epyc7002:5.10.55 geminilake:4.4.302 geminilakenk:5.10.55 grantley:3.10.108 kvmx64:4.4.302 purley:4.4.302 r1000:4.4.302 r1000nk:5.10.55 v1000:4.4.302 v1000nk:5.10.55"
+FROM alpine:3.19 AS stage
+ARG PLATFORMS="apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 epyc7002:5.10.55 geminilake:4.4.302 geminilakenk:5.10.55 kvmx64:4.4.302 purley:4.4.302 r1000:4.4.302 r1000nk:5.10.55 v1000:4.4.302 v1000nk:5.10.55"
 ARG TOOLKIT_VER="7.3"
 
 # Copy downloaded toolkit files from cache directory
@@ -29,7 +29,7 @@ RUN mkdir -p /opt && \
     done
 
 # Stage 2: Final image
-FROM debian:9-slim
+FROM debian:12-slim
 
 ENV SHELL=/bin/bash \
     ARCH=x86_64 \
