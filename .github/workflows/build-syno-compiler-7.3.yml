@@ -13,7 +13,6 @@ env:
   REGISTRY: docker.io
   REPOSITORY: dante90/syno-compiler
   TOOLCHAIN_VERSION: 7.3
-  GCCLIB_VER: gcc1220_glibc236
   PLATFORMS: |
     apollolake:4.4.180
     avoton:3.10.108
@@ -58,78 +57,48 @@ jobs:
       - name: Create opt/cache directory
         run: mkdir -p opt/cache
 
-      - name: Download Synology Toolchains
+      - name: Download Synology Toolkits
         run: |
           set -e
           TOOLCHAIN_VERSION="${{ env.TOOLCHAIN_VERSION }}"
-          GCCLIB_VER="${{ env.GCCLIB_VER }}"
-          BASE_URL="https://global.synologydownload.com/download/ToolChain/toolchain/${TOOLCHAIN_VERSION}-86009"
+          BASE_URL="https://archive.synology.com/download/ToolChain/toolkit/${TOOLCHAIN_VERSION}"
 
-          # Platform directory mappings
-          declare -A PLATFORM_DIRS
-          PLATFORM_DIRS[apollolake]="Intel%20x86%20Linux%204.4.180%20%28Apollolake%29"
-          PLATFORM_DIRS[avoton]="Intel%20x86%20Linux%203.10.108%20%28Avoton%29"
-          PLATFORM_DIRS[braswell]="Intel%20x86%20Linux%203.10.108%20%28Braswell%29"
-          PLATFORM_DIRS[broadwell]="Intel%20x86%20Linux%204.4.180%20%28Broadwell%29"
-          PLATFORM_DIRS[broadwellnk]="Intel%20x86%20Linux%204.4.302%20%28Broadwellnk%29"
-          PLATFORM_DIRS[broadwellnkv2]="Intel%20x86%20Linux%204.4.302%20%28Broadwellnkv2%29"
-          PLATFORM_DIRS[broadwellntbap]="Intel%20x86%20Linux%204.4.302%20%28Broadwellntbap%29"
-          PLATFORM_DIRS[bromolow]="Intel%20x86%20linux%203.10.108%20%28Bromolow%29"
-          PLATFORM_DIRS[denverton]="Intel%20x86%20Linux%204.4.302%20%28Denverton%29"
-          PLATFORM_DIRS[epyc7002]="AMD%20x86%20Linux%20Linux%205.10.55%20%28epyc7002%29"
-          PLATFORM_DIRS[geminilake]="Intel%20x86%20Linux%204.4.302%20%28GeminiLake%29"
-          PLATFORM_DIRS[geminilakenk]="Intel%20x86%20Linux%205.10.55%20%28geminilakenk%29"
-          PLATFORM_DIRS[grantley]="Intel%20x86%20Linux%203.10.108%20%28Grantley%29"
-          PLATFORM_DIRS[kvmx64]="Intel%20x86%20Linux%204.4.302%20%28Kvmx64%29"
-          PLATFORM_DIRS[purley]="Intel%20x86%20Linux%204.4.302%20%28Purley%29"
-          PLATFORM_DIRS[r1000]="AMD%20x86%20Linux%204.4.302%20%28r1000%29"
-          PLATFORM_DIRS[r1000nk]="AMD%20x86%20Linux%205.10.55%20%28r1000nk%29"
-          PLATFORM_DIRS[v1000]="Intel%20x86%20Linux%204.4.302%20%28V1000%29"
-          PLATFORM_DIRS[v1000nk]="AMD%20x86%20Linux%205.10.55%20%28v1000nk%29"
+          echo "Downloading Synology Toolkit ${TOOLCHAIN_VERSION}"
+          echo "Base URL: ${BASE_URL}"
+          echo ""
 
-          # Download toolchains for each platform
+          # Download toolkits for each platform
           while IFS=':' read -r PLATFORM KVER; do
             [ -z "$PLATFORM" ] && continue
             PLATFORM=$(echo "$PLATFORM" | xargs)  # trim whitespace
 
-            DIR="${PLATFORM_DIRS[$PLATFORM]}"
-            if [ -z "$DIR" ]; then
-              echo "Warning: No directory mapping for platform: $PLATFORM"
-              continue
-            fi
-
-            echo "Downloading toolchain for: $PLATFORM"
+            echo "Processing platform: $PLATFORM (kernel $KVER)"
 
             # Download ds.{platform}-{version}.dev.txz
-            DS_FILENAME="ds.${PLATFORM}-${TOOLCHAIN_VERSION}.dev.txz"
-            DS_URL="${BASE_URL}/${DIR}/${DS_FILENAME}"
-            echo "  Downloading ${DS_FILENAME}..."
-            if wget -q -O "opt/cache/${DS_FILENAME}" "${DS_URL}"; then
-              echo "  ✓ Downloaded $(du -h opt/cache/${DS_FILENAME} | cut -f1)"
+            DEV_FILENAME="ds.${PLATFORM}-${TOOLCHAIN_VERSION}.dev.txz"
+            DEV_URL="${BASE_URL}/${PLATFORM}/${DEV_FILENAME}"
+            echo "  Downloading ${DEV_FILENAME}..."
+            if wget -q -O "opt/cache/${DEV_FILENAME}" "${DEV_URL}" 2>/dev/null; then
+              SIZE=$(du -h "opt/cache/${DEV_FILENAME}" | cut -f1)
+              echo "  ✓ Downloaded ${SIZE}"
             else
-              echo "  ⚠ Failed to download ${DS_FILENAME}"
-            fi
-
-            # Download {platform}-{gcclib}_x86_64-GPL.txz
-            GCCLIB_FILENAME="${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz"
-            GCCLIB_URL="${BASE_URL}/${DIR}/${GCCLIB_FILENAME}"
-            echo "  Downloading ${GCCLIB_FILENAME}..."
-            if wget -q -O "opt/cache/${GCCLIB_FILENAME}" "${GCCLIB_URL}"; then
-              echo "  ✓ Downloaded $(du -h opt/cache/${GCCLIB_FILENAME} | cut -f1)"
-            else
-              echo "  ⚠ Failed to download ${GCCLIB_FILENAME}"
+              echo "  ✗ Failed to download ${DEV_FILENAME}"
+              exit 1
             fi
           done <<< "${{ env.PLATFORMS }}"
 
           # Download linux kernel sources
+          echo ""
+          echo "Downloading Linux kernel sources..."
           KVER_MAJORS="3 4 5"
           for KVER_MAJOR in $KVER_MAJORS; do
             LINUX_FILENAME="linux-${KVER_MAJOR}.x.txz"
             LINUX_URL="${BASE_URL}/${LINUX_FILENAME}"
             if [ ! -f "opt/cache/${LINUX_FILENAME}" ]; then
-              echo "Downloading ${LINUX_FILENAME}..."
-              if wget -q -O "opt/cache/${LINUX_FILENAME}" "${LINUX_URL}"; then
-                echo "  ✓ Downloaded $(du -h opt/cache/${LINUX_FILENAME} | cut -f1)"
+              echo "  Downloading ${LINUX_FILENAME}..."
+              if wget -q -O "opt/cache/${LINUX_FILENAME}" "${LINUX_URL}" 2>/dev/null; then
+                SIZE=$(du -h "opt/cache/${LINUX_FILENAME}" | cut -f1)
+                echo "  ✓ Downloaded ${SIZE}"
               else
                 echo "  ⚠ ${LINUX_FILENAME} not found (optional)"
               fi
@@ -137,8 +106,8 @@ jobs:
           done
 
           echo ""
-          echo "Downloaded files:"
-          ls -lah opt/cache/
+          echo "All downloaded files:"
+          ls -lh opt/cache/
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -151,7 +120,6 @@ jobs:
           build-args: |
             PLATFORMS=${{ env.PLATFORMS }}
             TOOLKIT_VER=${{ env.TOOLCHAIN_VERSION }}
-            GCCLIB_VER=${{ env.GCCLIB_VER }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -174,7 +142,7 @@ jobs:
             - ${{ env.TOOLCHAIN_VERSION }}
             - latest
           - **Base Image**: debian:9-slim
-          - **Toolchain Version**: ${{ env.TOOLCHAIN_VERSION }}
+          - **Toolkit Version**: ${{ env.TOOLCHAIN_VERSION }}
 
           ## Supported Platforms (x86_64)
           ${{ env.PLATFORMS }}

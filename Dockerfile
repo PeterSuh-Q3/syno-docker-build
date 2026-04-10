@@ -1,15 +1,14 @@
 # Synology Compiler 7.3 Dockerfile
-# Multi-stage build for efficient toolchain compilation
+# Multi-stage build for toolkit-based development
 # Build: docker build -t dante90/syno-compiler:7.3 .
 # Run: docker run -v /source:/input -v /output:/output dante90/syno-compiler:7.3 compile-module {platform}
 
-# Stage 1: Extract and prepare toolchains
+# Stage 1: Extract and prepare toolkits
 FROM alpine:3.14 AS stage
 ARG PLATFORMS="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 epyc7002:5.10.55 geminilake:4.4.302 geminilakenk:5.10.55 grantley:3.10.108 kvmx64:4.4.302 purley:4.4.302 r1000:4.4.302 r1000nk:5.10.55 v1000:4.4.302 v1000nk:5.10.55"
 ARG TOOLKIT_VER="7.3"
-ARG GCCLIB_VER="gcc1220_glibc236"
 
-# Copy downloaded toolkits from cache directory
+# Copy downloaded toolkit files from cache directory
 ADD opt /cache
 
 # Create /opt directory and extract toolkits
@@ -22,22 +21,9 @@ RUN mkdir -p /opt && \
         \
         if [ -f "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" ]; then \
           echo "Extracting ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" && \
-          tar -xaf "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" -C "/opt/${PLATFORM}" --strip-components=9 \
-            "usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${TOOLKIT_VER}" 2>/dev/null || \
-            echo "Warning: Module path not found in ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz"; \
-        fi && \
-        \
-        if [ -f "/cache/${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz" ]; then \
-          echo "Extracting ${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz" && \
-          tar -xaf "/cache/${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz" -C "/opt/${PLATFORM}" --strip-components=1; \
-        fi && \
-        \
-        KVER_MAJOR="`echo ${KVER} | rev | cut -d. -f2- | rev`" && \
-        if [ ! -d "/opt/linux-${KVER_MAJOR}.x" ] && [ -f "/cache/linux-${KVER_MAJOR}.x.txz" ]; then \
-          echo "Extracting linux-${KVER_MAJOR}.x.txz" && \
-          tar -xaf "/cache/linux-${KVER_MAJOR}.x.txz" -C "/opt"; \
-          rm -rf "/opt/${PLATFORM}/source" 2>/dev/null || true; \
-          ln -s "/opt/linux-${KVER_MAJOR}.x" "/opt/${PLATFORM}/source"; \
+          tar -xaf "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" -C "/opt/${PLATFORM}" --strip-components=1; \
+        else \
+          echo "Warning: ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz not found"; \
         fi; \
       done; \
     done
