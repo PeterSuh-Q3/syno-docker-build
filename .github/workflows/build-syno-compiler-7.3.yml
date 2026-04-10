@@ -1,0 +1,217 @@
+name: Build and Push Synology Compiler 7.3
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Synology platform (apollolake, broadwell, avoton, braswell, broadwellnk, broadwellnkv2, broadwellntbap, bromolow, denverton, epyc7002, geminilake, geminilakenk, grantley, kvmx64, purley, r1000, r1000nk, v1000, v1000nk)'
+        required: true
+        type: choice
+        options:
+          - apollolake
+          - avoton
+          - braswell
+          - broadwell
+          - broadwellnk
+          - broadwellnkv2
+          - broadwellntbap
+          - bromolow
+          - denverton
+          - epyc7002
+          - geminilake
+          - geminilakenk
+          - grantley
+          - kvmx64
+          - purley
+          - r1000
+          - r1000nk
+          - v1000
+          - v1000nk
+      push_latest:
+        description: 'Also tag as latest'
+        required: false
+        default: 'apollolake'
+        type: choice
+        options:
+          - 'none'
+          - 'apollolake'
+          - 'broadwell'
+
+env:
+  REGISTRY: docker.io
+  REPOSITORY: dante90/syno-compiler
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Download Synology Toolchain
+        run: |
+          PLATFORM=${{ inputs.platform }}
+          TOOLCHAIN_URL="https://global.synologydownload.com/download/ToolChain/toolchain/7.3-86009"
+
+          # Platform별 디렉토리명 매핑
+          case "$PLATFORM" in
+            apollolake)
+              DIR="Intel%20x86%20Linux%204.4.180%20%28Apollolake%29"
+              ;;
+            avoton)
+              DIR="Intel%20x86%20Linux%203.10.108%20%28Avoton%29"
+              ;;
+            braswell)
+              DIR="Intel%20x86%20Linux%203.10.108%20%28Braswell%29"
+              ;;
+            broadwell)
+              DIR="Intel%20x86%20Linux%204.4.180%20%28Broadwell%29"
+              ;;
+            broadwellnk)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28Broadwellnk%29"
+              ;;
+            broadwellnkv2)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28Broadwellnkv2%29"
+              ;;
+            broadwellntbap)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28Broadwellntbap%29"
+              ;;
+            bromolow)
+              DIR="Intel%20x86%20linux%203.10.108%20%28Bromolow%29"
+              ;;
+            denverton)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28Denverton%29"
+              ;;
+            epyc7002)
+              DIR="AMD%20x86%20Linux%20Linux%205.10.55%20%28epyc7002%29"
+              ;;
+            geminilake)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28GeminiLake%29"
+              ;;
+            geminilakenk)
+              DIR="Intel%20x86%20Linux%205.10.55%20%28geminilakenk%29"
+              ;;
+            grantley)
+              DIR="Intel%20x86%20Linux%203.10.108%20%28Grantley%29"
+              ;;
+            kvmx64)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28Kvmx64%29"
+              ;;
+            purley)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28Purley%29"
+              ;;
+            r1000)
+              DIR="AMD%20x86%20Linux%204.4.302%20%28r1000%29"
+              ;;
+            r1000nk)
+              DIR="AMD%20x86%20Linux%205.10.55%20%28r1000nk%29"
+              ;;
+            v1000)
+              DIR="Intel%20x86%20Linux%204.4.302%20%28V1000%29"
+              ;;
+            v1000nk)
+              DIR="AMD%20x86%20Linux%205.10.55%20%28v1000nk%29"
+              ;;
+          esac
+
+          FILENAME="${PLATFORM}-gcc1220_glibc236_x86_64-GPL.txz"
+          DOWNLOAD_URL="${TOOLCHAIN_URL}/${DIR}/${FILENAME}"
+
+          echo "Downloading from: ${DOWNLOAD_URL}"
+          wget -O /tmp/toolchain.txz "${DOWNLOAD_URL}"
+
+          # 다운로드 확인
+          if [ ! -f /tmp/toolchain.txz ]; then
+            echo "Failed to download toolchain"
+            exit 1
+          fi
+
+          echo "TOOLCHAIN_SIZE=$(du -h /tmp/toolchain.txz | cut -f1)" >> $GITHUB_ENV
+
+      - name: Extract and prepare toolchain
+        run: |
+          mkdir -p ./opt
+          cd ./opt
+          tar -xzf /tmp/toolchain.txz
+          cd -
+          echo "Toolchain extracted successfully"
+          ls -lah ./opt/
+
+      - name: Prepare build context
+        run: |
+          # files 디렉토리 준비 (필요시)
+          mkdir -p ./files
+
+          # entrypoint 스크립트 생성 (기존에 없으면)
+          if [ ! -f ./opt/do.sh ]; then
+            cat > ./opt/do.sh << 'EOF'
+          #!/bin/bash
+          # Synology Compiler Entrypoint
+          set -e
+
+          PLATFORM=$1
+          ACTION=${2:-compile-module}
+
+          if [ "$ACTION" = "compile-module" ]; then
+            echo "Compiling modules for platform: $PLATFORM"
+            # 실제 컴파일 로직은 여기에 추가
+          fi
+          EOF
+            chmod +x ./opt/do.sh
+          fi
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:7.3-${{ inputs.platform }}
+            ${{ inputs.push_latest == inputs.platform && format('{0}/{1}:7.3', env.REGISTRY, env.REPOSITORY) || '' }}
+            ${{ inputs.push_latest == inputs.platform && format('{0}/{1}:latest', env.REGISTRY, env.REPOSITORY) || '' }}
+          build-args: |
+            PLATFORM=${{ inputs.platform }}
+            TOOLCHAIN_VERSION=7.3
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+
+      - name: Create deployment summary
+        run: |
+          cat > /tmp/summary.md << EOF
+          # Synology Compiler 7.3 Build Complete
+
+          **Platform:** ${{ inputs.platform }}
+          **Toolchain Size:** ${{ env.TOOLCHAIN_SIZE }}
+          **Registry:** ${{ env.REGISTRY }}/${{ env.REPOSITORY }}
+          **Tags:**
+          - 7.3-${{ inputs.platform }}
+          ${{ inputs.push_latest == inputs.platform && '- 7.3' || '' }}
+          ${{ inputs.push_latest == inputs.platform && '- latest' || '' }}
+
+          ## Usage
+          \`\`\`bash
+          docker run -v /path/to/source:/input -v /path/to/output:/output \\
+            ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:7.3-${{ inputs.platform }} \\
+            compile-module ${{ inputs.platform }}
+          \`\`\`
+          EOF
+          cat /tmp/summary.md
+
+      - name: Upload summary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-summary
+          path: /tmp/summary.md
