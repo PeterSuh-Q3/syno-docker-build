@@ -57,8 +57,8 @@ function resolve_dsm_version() {
 
     # Validate version
     if [[ -z "${PLATFORMS[$ver]}" ]]; then
-        echo "❌ Unsupported DSM version: ${ver}"
-        echo "   Supported versions: 7.1, 7.2, 7.3"
+        echo "❌ Unsupported DSM version: ${ver}" >&2
+        echo "   Supported versions: 7.1, 7.2, 7.3" >&2
         exit 1
     fi
 
@@ -66,10 +66,10 @@ function resolve_dsm_version() {
     TOOLCHAIN_VER="${TOOLCHAIN_VERS[$ver]}"
     GCCLIB_VER="${GCCLIB_VERS[$ver]}"
 
-    echo "📋 DSM Version: ${TOOLKIT_VER}"
-    echo "   Toolchain:   ${TOOLCHAIN_VER}"
-    echo "   GCC/glibc:   ${GCCLIB_VER}"
-    echo "   Platforms:    $(echo ${PLATFORMS[$TOOLKIT_VER]} | wc -w | tr -d ' ') platform(s)"
+    echo "📋 DSM Version: ${TOOLKIT_VER}" >&2
+    echo "   Toolchain:   ${TOOLCHAIN_VER}" >&2
+    echo "   GCC/glibc:   ${GCCLIB_VER}" >&2
+    echo "   Platforms:    $(echo ${PLATFORMS[$TOOLKIT_VER]} | wc -w | tr -d ' ') platform(s)" >&2
 }
 
 ###############################################################################
