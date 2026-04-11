@@ -1,0 +1,22 @@
+name: Run syno docker build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make build.sh executable
+        run: chmod +x ./build.sh
+
+      - name: Run build.sh
+        run: ./build.sh
