@@ -200,6 +200,64 @@ function prepare_parallel() {
         echo "✅ All files already cached, skipping downloads"
     fi
 
+    # List all downloaded files
+    echo ""
+    echo "📂 Downloaded files in ${CACHE_DIR}/:"
+    echo "────────────────────────────────────────────────────────"
+    local total_size=0
+    for f in ${CACHE_DIR}/*.txz; do
+        if [ -f "$f" ]; then
+            local size=$(stat --printf="%s" "$f" 2>/dev/null || stat -f "%z" "$f" 2>/dev/null || echo 0)
+            local size_mb=$(awk "BEGIN {printf \"%.1f\", ${size}/1048576}")
+            printf "  %-60s %8s MB\n" "$(basename $f)" "${size_mb}"
+            total_size=$((total_size + size))
+        fi
+    done
+    local total_mb=$(awk "BEGIN {printf \"%.1f\", ${total_size}/1048576}")
+    echo "────────────────────────────────────────────────────────"
+    echo "  Total: ${total_mb} MB"
+    echo ""
+
+    # Verify all required files exist
+    echo "🔍 Verifying required files for DSM ${TOOLKIT_VER}..."
+    local missing=0
+    for P in ${PLATFORMS[${TOOLKIT_VER}]}; do
+        local plat=$(echo ${P} | cut -d':' -f1)
+
+        # Check dev toolkit
+        local dev_file="${CACHE_DIR}/ds.${plat}-${TOOLKIT_VER}.dev.txz"
+        if [ ! -f "${dev_file}" ]; then
+            echo "  ❌ MISSING: $(basename ${dev_file})"
+            ((missing++))
+        elif [ ! -s "${dev_file}" ]; then
+            echo "  ❌ EMPTY:   $(basename ${dev_file})"
+            ((missing++))
+        else
+            echo "  ✅ $(basename ${dev_file})"
+        fi
+
+        # Check toolchain
+        local tc_file="${CACHE_DIR}/${plat}-${GCCLIB_VER}_x86_64-GPL.txz"
+        if [ ! -f "${tc_file}" ]; then
+            echo "  ❌ MISSING: $(basename ${tc_file})"
+            ((missing++))
+        elif [ ! -s "${tc_file}" ]; then
+            echo "  ❌ EMPTY:   $(basename ${tc_file})"
+            ((missing++))
+        else
+            echo "  ✅ $(basename ${tc_file})"
+        fi
+    done
+    echo ""
+
+    if [ ${missing} -gt 0 ]; then
+        echo "❌ Verification failed: ${missing} file(s) missing or empty!"
+        exit 1
+    else
+        echo "✅ All required files verified ($(echo ${PLATFORMS[${TOOLKIT_VER}]} | wc -w | tr -d ' ') platforms, $(($(echo ${PLATFORMS[${TOOLKIT_VER}]} | wc -w | tr -d ' ') * 2)) files)"
+    fi
+    echo ""
+
     # Generate Dockerfile
     echo "📝 Generating Dockerfile..."
     cp Dockerfile.template Dockerfile
