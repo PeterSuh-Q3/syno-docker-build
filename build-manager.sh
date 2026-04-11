@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CACHE_MANAGER="${SCRIPT_DIR}/scripts/cache-manager.sh"
 PERFORMANCE_MONITOR="${SCRIPT_DIR}/scripts/performance-monitor.sh"
 BUILD_PARALLEL="${SCRIPT_DIR}/build-parallel.sh"
+DOCKER_HUB_MANAGER="${SCRIPT_DIR}/docker-hub-manager.sh"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -70,6 +71,46 @@ function check_dependencies() {
 }
 
 ###############################################################################
+function check_docker_hub_setup() {
+    log_info "Checking Docker Hub configuration..."
+    
+    # Check if Docker Hub manager exists
+    if [ ! -x "${DOCKER_HUB_MANAGER}" ]; then
+        log_warn "Docker Hub manager not found"
+        return 1
+    fi
+    
+    # Check Docker login status
+    local current_user=$(docker info 2>/dev/null | grep "Username:" | cut -d' ' -f2)
+    
+    if [ -n "$current_user" ]; then
+        log_info "✅ Docker Hub: logged in as $current_user"
+        return 0
+    else
+        log_warn "⚠️  Docker Hub: not logged in"
+        echo ""
+        echo "🐳 Docker Hub Setup Required:"
+        echo "   For local builds that push to Docker Hub, you need to:"
+        echo "   1. Set up Docker Hub account: ./docker-hub-manager.sh setup"
+        echo "   2. Or login to existing account: ./docker-hub-manager.sh login"
+        echo ""
+        echo "   For GitHub Actions (CI/CD):"
+        echo "   3. Set up GitHub Secrets: ./docker-hub-manager.sh github-setup"
+        echo ""
+        
+        read -p "   Continue without Docker Hub push? (y/N): " continue_no_push
+        if [[ "$continue_no_push" =~ ^[Yy]$ ]]; then
+            log_info "Continuing with local build only (no push)"
+            export NO_DOCKER_PUSH=true
+            return 0
+        else
+            log_error "Build cancelled. Please set up Docker Hub first."
+            return 1
+        fi
+    fi
+}
+
+###############################################################################
 function prepare_environment() {
     log_info "Preparing build environment..."
     
@@ -113,6 +154,11 @@ function quick_build() {
     log_info "🚀 Starting quick build (parallel optimized)"
     
     prepare_environment
+    
+    # Check Docker Hub setup for push operations
+    if ! check_docker_hub_setup; then
+        return 1
+    fi
     
     # Start performance monitoring
     if [ -x "${PERFORMANCE_MONITOR}" ]; then
@@ -245,6 +291,21 @@ function show_status() {
         echo "   ❌ Performance monitoring missing"
     fi
     
+    # Docker Hub status
+    echo ""
+    log_info "Docker Hub Status:"
+    if [ -x "${DOCKER_HUB_MANAGER}" ]; then
+        echo "   ✅ Docker Hub manager available"
+        local current_user=$(docker info 2>/dev/null | grep "Username:" | cut -d' ' -f2)
+        if [ -n "$current_user" ]; then
+            echo "   ✅ Logged in as: $current_user"
+        else
+            echo "   ⚠️  Not logged in (run: ./docker-hub-manager.sh login)"
+        fi
+    else
+        echo "   ❌ Docker Hub manager missing"
+    fi
+    
     # Check recent builds
     if [ -x "${PERFORMANCE_MONITOR}" ]; then
         echo ""
@@ -275,6 +336,12 @@ PERFORMANCE COMMANDS:
     cache-warm        Pre-download cache files
     monitor-start     Start build monitoring
     monitor-stop      Stop monitoring and generate report
+    
+DOCKER HUB COMMANDS:
+    docker-setup      Complete Docker Hub account setup
+    docker-login      Login to Docker Hub
+    docker-status     Check Docker Hub login status
+    docker-github     Setup GitHub Secrets for CI/CD
     
 EXAMPLES:
     $0 quick                     # Full optimized build
@@ -337,6 +404,18 @@ case "${1:-help}" in
         ;;
     "monitor-stop")
         [ -x "${PERFORMANCE_MONITOR}" ] && ${PERFORMANCE_MONITOR} stop "$2"
+        ;;
+    "docker-setup")
+        [ -x "${DOCKER_HUB_MANAGER}" ] && ${DOCKER_HUB_MANAGER} setup
+        ;;
+    "docker-login")
+        [ -x "${DOCKER_HUB_MANAGER}" ] && ${DOCKER_HUB_MANAGER} login
+        ;;
+    "docker-status")
+        [ -x "${DOCKER_HUB_MANAGER}" ] && ${DOCKER_HUB_MANAGER} status
+        ;;
+    "docker-github")
+        [ -x "${DOCKER_HUB_MANAGER}" ] && ${DOCKER_HUB_MANAGER} github-setup
         ;;
     "help"|"-h"|"--help")
         show_help

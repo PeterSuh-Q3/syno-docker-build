@@ -165,6 +165,15 @@ function build_image() {
         --build-arg BUILDKIT_INLINE_CACHE=1 \
         . ; then
         echo "✅ Successfully built ${tag_name}"
+        
+        # Check if Docker Hub push is enabled
+        if [ "$NO_DOCKER_PUSH" = "true" ]; then
+            echo "ℹ️  Skipping Docker Hub push (NO_DOCKER_PUSH=true)"
+        else
+            echo "📤 Image ready for push to Docker Hub"
+            echo "   To push: docker push ${tag_name}"
+        fi
+        
         return 0
     else
         echo "❌ Failed to build ${tag_name}"
