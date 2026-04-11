@@ -24,7 +24,8 @@ URIS["broadwell"]="Intel%20x86%20Linux%20|%20%28Broadwell%29"
 URIS["broadwellnk"]="Intel%20x86%20Linux%20|%20%28Broadwellnk%29"
 URIS["broadwellnkv2"]="Intel%20x86%20Linux%20|%20%28Broadwellnkv2%29"
 URIS["broadwellntbap"]="Intel%20x86%20Linux%20|%20%28Broadwellntbap%29"
-URIS["bromolow"]="Intel%20x86%20linux%203.10.108%20%28Bromolow%29"
+URIS["bromolow"]="Intel%20x86%20linux%20|%20%28Bromolow%29"
+URIS["cedarview"]="Intel%20x86%20linux%20|%20%28Cedarview%29"
 URIS["denverton"]="Intel%20x86%20Linux%20|%20%28Denverton%29"
 URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28GeminiLake%29"
 URIS["purley"]="Intel%20x86%20Linux%20|%20%28Purley%29"
@@ -36,7 +37,7 @@ URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 
 # Platform definitions per DSM version (platform:kernel_version)
-PLATFORMS["7.1"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.180 broadwellnkv2:4.4.180 broadwellntbap:4.4.180 bromolow:3.10.108 denverton:4.4.180 geminilake:4.4.180 purley:4.4.180 r1000:4.4.180 v1000:4.4.180 epyc7002:5.10.55"
+PLATFORMS["7.1"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.180 broadwellnkv2:4.4.180 broadwellntbap:4.4.180 bromolow:3.10.108 cedarview:3.10.108 denverton:4.4.180 geminilake:4.4.180 purley:4.4.180 r1000:4.4.180 v1000:4.4.180 epyc7002:5.10.55"
 PLATFORMS["7.2"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
 PLATFORMS["7.3"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
 
