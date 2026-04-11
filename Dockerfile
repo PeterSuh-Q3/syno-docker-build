@@ -7,6 +7,7 @@
 FROM alpine:3.19 AS stage
 ARG PLATFORMS="apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 epyc7002:5.10.55 geminilake:4.4.302 geminilakenk:5.10.55 kvmx64:4.4.302 purley:4.4.302 r1000:4.4.302 r1000nk:5.10.55 v1000:4.4.302 v1000nk:5.10.55"
 ARG TOOLKIT_VER="7.3"
+ARG GCCLIB_VER="gcc1220_glibc236"
 
 # Copy downloaded toolkit files from cache directory
 ADD opt/cache /cache
@@ -18,7 +19,16 @@ RUN for V in ${PLATFORMS}; do \
         mkdir "/opt/${PLATFORM}" && \
         echo "Extracting ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz (kernel modules only)" && \
         tar -xaf "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" -C "/opt/${PLATFORM}" --strip-components=9 \
-          "usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${TOOLKIT_VER}"; \
+          "usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${TOOLKIT_VER}" && \
+        echo "Extracting ${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz" && \
+        tar -xaf "/cache/${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz" -C "/opt/${PLATFORM}" --strip-components=1; \
+        KVER_MAJOR="`echo ${KVER} | rev | cut -d. -f2- | rev`"; \
+        if [ ! -d "/opt/linux-${KVER_MAJOR}.x" -a -f "/cache/linux-${KVER_MAJOR}.x.txz" ]; then \
+          echo "Extracting linux-${KVER_MAJOR}.x.txz" && \
+          tar -xaf "/cache/linux-${KVER_MAJOR}.x.txz" -C "/opt"; \
+          rm -rf /opt/${PLATFORM}/source && \
+          ln -s /opt/linux-${KVER_MAJOR}.x /opt/${PLATFORM}/source; \
+        fi; \
       done; \
     done
 
@@ -35,14 +45,12 @@ LABEL maintainer="dante90" \
       description="Synology Compiler 7.3 - Multi-platform cross-compilation environment"
 
 # Install required packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests \
+RUN apt update --yes && \
+    apt install --yes --no-install-recommends --no-install-suggests --allow-unauthenticated \
       ca-certificates nano curl bc kmod git gettext texinfo autopoint gawk sudo \
       build-essential make ncurses-dev libssl-dev autogen automake pkg-config libtool xsltproc gperf && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    \
-    # Create build user
     useradd --create-home --shell /bin/bash --uid 1000 --user-group arpl && \
     echo "arpl ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/arpl && \
     mkdir -p /output && chown 1000:1000 /output
@@ -59,6 +67,7 @@ RUN chmod +x /opt/do.sh && \
 USER arpl
 WORKDIR /input
 VOLUME ["/input", "/output"]
+ENTRYPOINT ["/opt/do.sh"]
 
 # Entrypoint
 ENTRYPOINT ["/opt/do.sh"]
