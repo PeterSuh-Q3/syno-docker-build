@@ -215,5 +215,5 @@ jobs:
             ${{ env.IMAGE_NAME }}:7.3-purley \
             ${{ env.IMAGE_NAME }}:7.3-r1000 \
             ${{ env.IMAGE_NAME }}:7.3-v1000
-          
+
           echo "✅ Created multi-arch manifest: ${{ env.IMAGE_NAME }}:7.3-multiarch"
