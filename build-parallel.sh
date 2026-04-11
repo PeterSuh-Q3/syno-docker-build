@@ -10,23 +10,23 @@ MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 declare -A URIS
 declare -A PLATFORMS
 
-URIS["apollolake"]="Intel%20x86%20Linux%20|%20%28Apollolake%29"
-URIS["broadwell"]="Intel%20x86%20Linux%20|%20%28Broadwell%29"
-URIS["broadwellnk"]="Intel%20x86%20Linux%20|%20%28Broadwellnk%29"
-URIS["broadwellnkv2"]="Intel%20x86%20Linux%20|%20%28Broadwellnkv2%29"
-URIS["broadwellntbap"]="Intel%20x86%20Linux%20|%20%28Broadwellntbap%29"
-URIS["bromolow"]="Intel%20x86%20linux%20|%20%28Bromolow%29"
-URIS["denverton"]="Intel%20x86%20Linux%20|%20%28Denverton%29"
-URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28GeminiLake%29"
-URIS["purley"]="Intel%20x86%20Linux%20|%20%28Purley%29"
-URIS["v1000"]="AMD%20x86%20Linux%20|%20%28V1000%29"
-URIS["r1000"]="AMD%20x86%20Linux%20|%20%28V1000%29"
+URIS["apollolake"]="Intel%20x86%20Linux%20|%20%28apollolake%29"
+URIS["broadwell"]="Intel%20x86%20Linux%20|%20%28broadwell%29"
+URIS["broadwellnk"]="Intel%20x86%20Linux%20|%20%28broadwellnk%29"
+URIS["broadwellnkv2"]="Intel%20x86%20Linux%20|%20%28broadwellnkv2%29"
+URIS["broadwellntbap"]="Intel%20x86%20Linux%20|%20%28broadwellntbap%29"
+URIS["bromolow"]="Intel%20x86%20linux%20|%20%28bromolow%29"
+URIS["denverton"]="Intel%20x86%20Linux%20|%20%28denverton%29"
+URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28geminiLake%29"
+URIS["purley"]="Intel%20x86%20Linux%20|%20%28purley%29"
+URIS["v1000"]="AMD%20x86%20Linux%20|%20%28v1000%29"
+URIS["r1000"]="AMD%20x86%20Linux%20|%20%28r1000%29"
 URIS["epyc7002"]="AMD%20x86%20Linux%20Linux%20|%20%28epyc7002%29"
 URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
 URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 
-PLATFORMS["7.3"]="epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
+PLATFORMS["7.3"]="epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55 apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302"
 
 mkdir -p ${CACHE_DIR}
 
