@@ -1,0 +1,191 @@
+name: Build and Push Synology Compiler 7.3 (Performance Optimized)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to build (comma separated or "all")'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'epyc7002'
+          - 'geminilakenk'
+          - 'r1000nk'
+          - 'v1000nk'
+          - 'epyc7002,geminilakenk'
+          - 'r1000nk,v1000nk'
+      push_to_hub:
+        description: 'Push to Docker Hub'
+        required: true
+        default: true
+        type: boolean
+      build_method:
+        description: 'Build Method'
+        required: true
+        default: 'parallel'
+        type: choice
+        options:
+          - 'parallel'
+          - 'sequential'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: dante90/syno-compiler
+  TOOLKIT_VERSION: "7.3"
+
+jobs:
+  # Matrix job to build platforms in parallel
+  build-matrix:
+    if: github.event.inputs.platforms != 'all' && github.event.inputs.build_method == 'parallel'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: 
+          - epyc7002
+          - geminilakenk  
+          - r1000nk
+          - v1000nk
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+
+      - name: Log in to Docker Hub
+        if: github.event.inputs.push_to_hub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache-${{ matrix.platform }}
+          key: ${{ runner.os }}-buildx-${{ matrix.platform }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ matrix.platform }}-
+
+      - name: Cache Synology toolkits
+        uses: actions/cache@v3
+        with:
+          path: cache/
+          key: synology-toolkit-7.3-${{ matrix.platform }}-${{ hashFiles('build-parallel.sh') }}
+          restore-keys: |
+            synology-toolkit-7.3-${{ matrix.platform }}-
+            synology-toolkit-7.3-
+
+      - name: Make build script executable
+        run: chmod +x build-parallel.sh
+
+      - name: Prepare platform-specific build
+        run: |
+          echo "🚀 Building for platform: ${{ matrix.platform }}"
+          ./build-parallel.sh prepare
+
+      - name: Build Docker image for ${{ matrix.platform }}
+        run: |
+          ./build-parallel.sh build ${{ matrix.platform }}
+
+      - name: Push to Docker Hub
+        if: github.event.inputs.push_to_hub == 'true'
+        run: |
+          docker tag dante90/syno-compiler:7.3-${{ matrix.platform }} ${{ env.IMAGE_NAME }}:7.3-${{ matrix.platform }}
+          docker push ${{ env.IMAGE_NAME }}:7.3-${{ matrix.platform }}
+          echo "✅ Pushed ${{ env.IMAGE_NAME }}:7.3-${{ matrix.platform }}"
+
+  # Single job for all platforms or sequential build
+  build-all:
+    if: github.event.inputs.platforms == 'all' || github.event.inputs.build_method == 'sequential'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+
+      - name: Log in to Docker Hub
+        if: github.event.inputs.push_to_hub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-all-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-all-
+
+      - name: Cache Synology toolkits
+        uses: actions/cache@v3
+        with:
+          path: cache/
+          key: synology-toolkit-7.3-all-${{ hashFiles('build-parallel.sh') }}
+          restore-keys: |
+            synology-toolkit-7.3-all-
+            synology-toolkit-7.3-
+
+      - name: Make build script executable
+        run: chmod +x build-parallel.sh
+
+      - name: Build all platforms
+        run: |
+          echo "🚀 Building all platforms with parallel optimization"
+          export MAX_PARALLEL_JOBS=6
+          ./build-parallel.sh all
+
+      - name: Push to Docker Hub
+        if: github.event.inputs.push_to_hub == 'true'
+        run: |
+          docker tag dante90/syno-compiler:7.3 ${{ env.IMAGE_NAME }}:7.3
+          docker tag dante90/syno-compiler:latest ${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.IMAGE_NAME }}:7.3
+          docker push ${{ env.IMAGE_NAME }}:latest
+          echo "✅ Pushed ${{ env.IMAGE_NAME }}:7.3 and latest"
+
+  # Optional: Multi-arch build job
+  build-multiarch:
+    if: github.event.inputs.platforms == 'all' && github.event.inputs.push_to_hub == 'true'
+    needs: [build-matrix]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          # Create multi-arch manifest combining all platform images
+          docker buildx imagetools create -t ${{ env.IMAGE_NAME }}:7.3-multiarch \
+            ${{ env.IMAGE_NAME }}:7.3-epyc7002 \
+            ${{ env.IMAGE_NAME }}:7.3-geminilakenk \
+            ${{ env.IMAGE_NAME }}:7.3-r1000nk \
+            ${{ env.IMAGE_NAME }}:7.3-v1000nk
+          
+          echo "✅ Created multi-arch manifest: ${{ env.IMAGE_NAME }}:7.3-multiarch"

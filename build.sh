@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
+# Enhanced Synology Compiler Build Script
+# Includes performance optimizations and monitoring
+
 CACHE_DIR="cache"
-#SERVER="https://archive.synology.com"
 SERVER="https://global.download.synology.com"
-#https://global.download.synology.com/download/ToolChain/Synology%20NAS%20GPL%20Source/
+USE_PARALLEL=${USE_PARALLEL:-true}
+PERFORMANCE_MONITORING=${PERFORMANCE_MONITORING:-true}
 
 declare -A URIS
 declare -A PLATFORMS
