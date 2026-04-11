@@ -48,6 +48,7 @@ RUN apt update --yes && \
 
 COPY --from=stage --chown=1000:1000 /opt /opt
 COPY files/ /
+RUN chmod +x /opt/do.sh /etc/profile.d/login.sh
 
 USER arpl
 WORKDIR /input
