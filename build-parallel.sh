@@ -10,8 +10,11 @@ MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 declare -A URIS
 declare -A PLATFORMS
 
-URIS["apollolake"]="Intel%20x86%20Linux%204.4.180%20%28Apollolake%29"
-URIS["broadwell"]="Intel%20x86%20Linux%204.4.180%20%28Broadwell%29"
+URIS["apollolake"]="Intel%20x86%20Linux%20|%20%28Apollolake%29"
+URIS["avoton"]="Intel%20x86%20Linux%20|%20%28Avoton%29"
+URIS["braswell"]="Intel%20x86%20Linux%20|%20%28Braswell%29"
+
+URIS["broadwell"]="Intel%20x86%20Linux%20|%20%28Broadwell%29"
 URIS["broadwellnk"]="Intel%20x86%20Linux%20|%20%28Broadwellnk%29"
 URIS["broadwellnkv2"]="Intel%20x86%20Linux%20|%20%28Broadwellnkv2%29"
 URIS["broadwellntbap"]="Intel%20x86%20Linux%20|%20%28Broadwellntbap%29"
@@ -26,7 +29,9 @@ URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
 URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 
-PLATFORMS["7.3"]="epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55 apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302"
+PLATFORMS["7.1"]="apollolake:4.4.180 broadwell:4.4.180 broadwellnk:4.4.180 bromolow:3.10.108 denverton:4.4.180 geminilake:4.4.180 v1000:4.4.180 r1000:4.4.180 epyc7002:5.10.55"
+PLATFORMS["7.2"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 v1000:4.4.302 r1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
+PLATFORMS["7.3"]="apollolake:4.4.180 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
 
 mkdir -p ${CACHE_DIR}
 
@@ -185,10 +190,20 @@ function build_image() {
 }
 
 ###############################################################################
-# Main execution for 7.3
-TOOLKIT_VER="7.3"
-TOOLCHAIN_VER="7.3-86009"
+# 7.1
+# TOOLKIT_VER="7.1"
+# TOOLCHAIN_VER="7.1-42661"
+# GCCLIB_VER="gcc850_glibc226"
+
+# 7.2
+TOOLKIT_VER="7.2"
+TOOLCHAIN_VER="7.2-72806"
 GCCLIB_VER="gcc1220_glibc236"
+
+# Main execution for 7.3
+#TOOLKIT_VER="7.3"
+#TOOLCHAIN_VER="7.3-86009"
+#GCCLIB_VER="gcc1220_glibc236"
 
 case "${1:-all}" in
     "prepare")
