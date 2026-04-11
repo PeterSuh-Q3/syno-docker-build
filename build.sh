@@ -11,13 +11,13 @@ PERFORMANCE_MONITORING=${PERFORMANCE_MONITORING:-true}
 declare -A URIS
 declare -A PLATFORMS
 
-URIS["apollolake"]="Intel%20x86%20Linux%20|%20%28Apollolake%29"
-URIS["broadwell"]="Intel%20x86%20Linux%20|%20%28Broadwell%29"
-URIS["broadwellnk"]="Intel%20x86%20Linux%20|%20%28Broadwellnk%29"
-URIS["bromolow"]="Intel%20x86%20linux%20|%20%28Bromolow%29"
-URIS["denverton"]="Intel%20x86%20Linux%20|%20%28Denverton%29"
-URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28GeminiLake%29"
-URIS["v1000"]="Intel%20x86%20Linux%20|%20%28V1000%29"
+URIS["apollolake"]="Intel%20x86%20Linux%20|%20%28apollolake%29"
+URIS["broadwell"]="Intel%20x86%20Linux%20|%20%28broadwell%29"
+URIS["broadwellnk"]="Intel%20x86%20Linux%20|%20%28broadwellnk%29"
+URIS["bromolow"]="Intel%20x86%20linux%20|%20%28bromolow%29"
+URIS["denverton"]="Intel%20x86%20Linux%20|%20%28denverton%29"
+URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28geminiLake%29"
+URIS["v1000"]="AMD%20x86%20Linux%20|%20%28v1000%29"
 URIS["r1000"]="AMD%20x86%20Linux%20|%20%28r1000%29"
 URIS["epyc7002"]="AMD%20x86%20Linux%20Linux%20|%20%28epyc7002%29"
 URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
