@@ -11,20 +11,14 @@ ARG TOOLKIT_VER="7.3"
 # Copy downloaded toolkit files from cache directory
 ADD opt/cache /cache
 
-# Create /opt directory and extract toolkits
-RUN mkdir -p /opt && \
-    for V in ${PLATFORMS}; do \
+# Extract toolkits - only kernel modules from dev.txz (matching original behavior)
+RUN for V in ${PLATFORMS}; do \
       echo "${V}" | while IFS=':' read PLATFORM KVER; do \
-        echo "Processing platform: ${PLATFORM} kernel: ${KVER}"; \
         echo -e "${PLATFORM}\t${KVER}" >> /opt/platforms && \
-        mkdir -p "/opt/${PLATFORM}" && \
-        \
-        if [ -f "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" ]; then \
-          echo "Extracting ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" && \
-          tar -xaf "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" -C "/opt/${PLATFORM}" --strip-components=1; \
-        else \
-          echo "Warning: ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz not found"; \
-        fi; \
+        mkdir "/opt/${PLATFORM}" && \
+        echo "Extracting ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz (kernel modules only)" && \
+        tar -xaf "/cache/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz" -C "/opt/${PLATFORM}" --strip-components=9 \
+          "usr/local/x86_64-pc-linux-gnu/x86_64-pc-linux-gnu/sys-root/usr/lib/modules/DSM-${TOOLKIT_VER}"; \
       done; \
     done
 
