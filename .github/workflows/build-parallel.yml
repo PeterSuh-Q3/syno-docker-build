@@ -9,6 +9,7 @@ on:
         default: '7.3'
         type: choice
         options:
+          - '7.0'
           - '7.1'
           - '7.2'
           - '7.3'
