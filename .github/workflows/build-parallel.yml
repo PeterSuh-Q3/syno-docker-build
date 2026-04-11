@@ -41,6 +41,11 @@ on:
         required: true
         default: true
         type: boolean
+      tag_latest:
+        description: 'Also tag as latest'
+        required: true
+        default: false
+        type: boolean
       build_method:
         description: 'Build Method'
         required: true
@@ -142,6 +147,7 @@ jobs:
 
       - name: Build Docker image for ${{ matrix.platform }}
         run: |
+          export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
           ./build-parallel.sh ${{ needs.setup.outputs.dsm_version }} build ${{ matrix.platform }}
 
       - name: Push to Docker Hub
@@ -199,6 +205,7 @@ jobs:
           DSM_VER="${{ needs.setup.outputs.dsm_version }}"
           echo "🚀 Building all platforms for DSM ${DSM_VER} with parallel optimization"
           export MAX_PARALLEL_JOBS=6
+          export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
           ./build-parallel.sh ${DSM_VER} all
 
       - name: Push to Docker Hub
@@ -206,10 +213,16 @@ jobs:
         run: |
           DSM_VER="${{ needs.setup.outputs.dsm_version }}"
           docker tag dante90/syno-compiler:${DSM_VER} ${{ env.IMAGE_NAME }}:${DSM_VER}
-          docker tag dante90/syno-compiler:latest ${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.IMAGE_NAME }}:${DSM_VER}
-          docker push ${{ env.IMAGE_NAME }}:latest
-          echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER} and latest"
+          echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}"
+
+          if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
+            docker tag dante90/syno-compiler:${DSM_VER} ${{ env.IMAGE_NAME }}:latest
+            docker push ${{ env.IMAGE_NAME }}:latest
+            echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
+          else
+            echo "ℹ️  Skipping latest tag (tag_latest=false)"
+          fi
 
   # Optional: Multi-arch manifest combining all platform images
   build-multiarch:

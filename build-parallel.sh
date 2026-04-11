@@ -320,7 +320,9 @@ case "${1:-all}" in
         if [ "$PLATFORM" = "all" ]; then
             prepare_parallel
             build_image "dante90/syno-compiler:${TOOLKIT_VER}" ""
-            build_image "dante90/syno-compiler:latest" ""
+            if [ "${TAG_LATEST}" = "true" ]; then
+                build_image "dante90/syno-compiler:latest" ""
+            fi
         else
             prepare_parallel
             build_image "dante90/syno-compiler:${TOOLKIT_VER}-${PLATFORM}" "--build-arg TARGET_PLATFORM=${PLATFORM}"
@@ -333,7 +335,9 @@ case "${1:-all}" in
     "all"|*)
         prepare_parallel
         build_image "dante90/syno-compiler:${TOOLKIT_VER}" ""
-        build_image "dante90/syno-compiler:latest" ""
+        if [ "${TAG_LATEST}" = "true" ]; then
+            build_image "dante90/syno-compiler:latest" ""
+        fi
         echo "🚀 Build completed! Performance optimized with parallel downloads."
         ;;
 esac
