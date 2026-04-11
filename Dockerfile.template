@@ -1,4 +1,4 @@
-FROM alpine:3.14 AS stage
+FROM alpine:3.19 AS stage
 ARG PLATFORMS="@@@PLATFORMS@@@"
 ARG TOOLKIT_VER="@@@TOOLKIT_VER@@@"
 ARG GCCLIB_VER="@@@GCCLIB_VER@@@"
@@ -26,7 +26,7 @@ RUN for V in ${PLATFORMS}; do \
     done
 
 # Final image
-FROM debian:9-slim
+FROM debian:12-slim
 ENV SHELL=/bin/bash \
     ARCH=x86_64
 
