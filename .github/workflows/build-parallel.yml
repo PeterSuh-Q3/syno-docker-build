@@ -15,6 +15,8 @@ on:
           - 'r1000nk'
           - 'v1000nk'
           - 'apollolake'
+          - 'avoton'
+          - 'braswell'          
           - 'broadwell'
           - 'broadwellnk'
           - 'broadwellnkv2'
@@ -61,6 +63,8 @@ jobs:
           - r1000nk
           - v1000nk
           - apollolake
+          - avoton
+          - braswell          
           - broadwell
           - broadwellnk
           - broadwellnkv2
@@ -206,6 +210,8 @@ jobs:
             ${{ env.IMAGE_NAME }}:7.3-r1000nk \
             ${{ env.IMAGE_NAME }}:7.3-v1000nk \
             ${{ env.IMAGE_NAME }}:7.3-apollolake \
+            ${{ env.IMAGE_NAME }}:7.3-avoton \
+            ${{ env.IMAGE_NAME }}:7.3-braswell \
             ${{ env.IMAGE_NAME }}:7.3-broadwell \
             ${{ env.IMAGE_NAME }}:7.3-broadwellnk \
             ${{ env.IMAGE_NAME }}:7.3-broadwellnkv2 \
