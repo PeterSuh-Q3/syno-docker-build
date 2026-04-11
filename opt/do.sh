@@ -67,7 +67,7 @@ setup_platform() {
     fi
 
     # Get kernel version from platforms file
-    local kver=$(grep "^${platform}\t" /opt/platforms | cut -f2)
+    local kver=$(awk -v p="${platform}" '$1 == p {print $2}' /opt/platforms)
     if [ -z "${kver}" ]; then
         log_error "Platform ${platform} not found in /opt/platforms"
         list_platforms
