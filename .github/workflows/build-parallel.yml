@@ -14,16 +14,6 @@ on:
           - 'geminilakenk'
           - 'r1000nk'
           - 'v1000nk'
-          - 'apollolake'
-          - 'broadwell'
-          - 'broadwellnk'
-          - 'broadwellnkv2'
-          - 'broadwellntbap'
-          - 'denverton'
-          - 'geminilake'
-          - 'purley'
-          - 'r1000'
-          - 'v1000'
       push_to_hub:
         description: 'Push to Docker Hub'
         required: true
@@ -60,16 +50,6 @@ jobs:
           - geminilakenk
           - r1000nk
           - v1000nk
-          - apollolake
-          - broadwell
-          - broadwellnk
-          - broadwellnkv2
-          - broadwellntbap
-          - denverton
-          - geminilake
-          - purley
-          - r1000
-          - v1000
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -204,16 +184,6 @@ jobs:
             ${{ env.IMAGE_NAME }}:7.3-epyc7002 \
             ${{ env.IMAGE_NAME }}:7.3-geminilakenk \
             ${{ env.IMAGE_NAME }}:7.3-r1000nk \
-            ${{ env.IMAGE_NAME }}:7.3-v1000nk \
-            ${{ env.IMAGE_NAME }}:7.3-apollolake \
-            ${{ env.IMAGE_NAME }}:7.3-broadwell \
-            ${{ env.IMAGE_NAME }}:7.3-broadwellnk \
-            ${{ env.IMAGE_NAME }}:7.3-broadwellnkv2 \
-            ${{ env.IMAGE_NAME }}:7.3-broadwellntbap \
-            ${{ env.IMAGE_NAME }}:7.3-denverton \
-            ${{ env.IMAGE_NAME }}:7.3-geminilake \
-            ${{ env.IMAGE_NAME }}:7.3-purley \
-            ${{ env.IMAGE_NAME }}:7.3-r1000 \
-            ${{ env.IMAGE_NAME }}:7.3-v1000
+            ${{ env.IMAGE_NAME }}:7.3-v1000nk
           
           echo "✅ Created multi-arch manifest: ${{ env.IMAGE_NAME }}:7.3-multiarch"

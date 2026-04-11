@@ -26,7 +26,7 @@ URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
 URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 
-PLATFORMS["7.3"]="epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55 apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302"
+PLATFORMS["7.3"]="epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
 
 mkdir -p ${CACHE_DIR}
 
