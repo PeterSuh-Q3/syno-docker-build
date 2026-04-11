@@ -4,7 +4,7 @@
 # Includes performance optimizations and monitoring
 
 CACHE_DIR="cache"
-SERVER="https://global.download.synology.com"
+SERVER="https://global.synologydownload.com"
 USE_PARALLEL=${USE_PARALLEL:-true}
 PERFORMANCE_MONITORING=${PERFORMANCE_MONITORING:-true}
 
@@ -20,8 +20,8 @@ URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28GeminiLake%29"
 URIS["v1000"]="Intel%20x86%20Linux%20|%20%28V1000%29"
 URIS["r1000"]="AMD%20x86%20Linux%20|%20%28r1000%29"
 URIS["epyc7002"]="AMD%20x86%20Linux%20Linux%20|%20%28epyc7002%29"
-URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28GeminiLakenk%29"
-URIS["v1000nk"]="Intel%20x86%20Linux%20|%20%28V1000nk%29"
+URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
+URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 PLATFORMS["7.1"]="apollolake:4.4.180 broadwell:4.4.180 broadwellnk:4.4.180 bromolow:3.10.108 denverton:4.4.180 geminilake:4.4.180 v1000:4.4.180 r1000:4.4.180 epyc7002:5.10.55"
 PLATFORMS["7.2"]="apollolake:4.4.302 broadwell:4.4.302 broadwellnk:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 v1000:4.4.302 r1000:4.4.302 epyc7002:5.10.55"

@@ -4,7 +4,7 @@
 # Performance optimized version with parallel downloads and builds
 
 CACHE_DIR="cache"
-SERVER="https://global.download.synology.com"
+SERVER="https://global.synologydownload.com"
 MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 
 declare -A URIS
@@ -19,8 +19,8 @@ URIS["geminilake"]="Intel%20x86%20Linux%20|%20%28GeminiLake%29"
 URIS["v1000"]="Intel%20x86%20Linux%20|%20%28V1000%29"
 URIS["r1000"]="AMD%20x86%20Linux%20|%20%28r1000%29"
 URIS["epyc7002"]="AMD%20x86%20Linux%20Linux%20|%20%28epyc7002%29"
-URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28GeminiLakenk%29"
-URIS["v1000nk"]="Intel%20x86%20Linux%20|%20%28V1000nk%29"
+URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
+URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 
 PLATFORMS["7.3"]="epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
