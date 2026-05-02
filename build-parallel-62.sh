@@ -123,6 +123,9 @@ function prepare_parallel() {
         local tc_file="${CACHE_DIR}/${tc_filename}"
         local tc_url="${SF_BASE}/${SF_DIRS[${PLATFORM}]}/${tc_filename}/download"
 
+        echo "${tc_file}"
+        echo "${tc_url}"
+
         if [ ! -f "${tc_file}" ]; then
             job_list+=("download_file|${tc_url}|${tc_file}|${PLATFORM} toolchain [SourceForge]")
         else
