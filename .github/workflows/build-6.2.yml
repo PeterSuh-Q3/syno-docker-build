@@ -61,7 +61,7 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: dante90/syno-compiler
-  DSM_VERSION: ${{ github.event.inputs.dsm_version || '7.3' }}
+  DSM_VERSION: ${{ github.event.inputs.dsm_version || '6.2' }}
 
 jobs:
   # Setup job: resolve DSM version and generate dynamic platform matrix
@@ -79,7 +79,7 @@ jobs:
         id: resolve
         run: |
           chmod +x build-parallel.sh
-          DSM_VER="${{ github.event.inputs.dsm_version || '7.3' }}"
+          DSM_VER="${{ github.event.inputs.dsm_version || '6.2' }}"
           echo "dsm_version=${DSM_VER}" >> $GITHUB_OUTPUT
 
           # Get platform list as JSON array from the build script
