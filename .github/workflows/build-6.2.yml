@@ -78,12 +78,12 @@ jobs:
       - name: Resolve DSM version and platforms
         id: resolve
         run: |
-          chmod +x build-parallel.sh
+          chmod +x build-parallel-62.sh
           DSM_VER="${{ github.event.inputs.dsm_version || '6.2' }}"
           echo "dsm_version=${DSM_VER}" >> $GITHUB_OUTPUT
 
           # Get platform list as JSON array from the build script
-          MATRIX_JSON=$(./build-parallel.sh "${DSM_VER}" platforms)
+          MATRIX_JSON=$(./build-parallel-62.sh "${DSM_VER}" platforms)
           echo "platform_matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
 
           # Also output as space-separated list for build-all job
@@ -131,23 +131,23 @@ jobs:
         uses: actions/cache@v3
         with:
           path: cache/
-          key: synology-toolkit-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-${{ hashFiles('build-parallel.sh') }}
+          key: synology-toolkit-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-${{ hashFiles('build-parallel-62.sh') }}
           restore-keys: |
             synology-toolkit-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-
             synology-toolkit-${{ needs.setup.outputs.dsm_version }}-
 
       - name: Make build script executable
-        run: chmod +x build-parallel.sh
+        run: chmod +x build-parallel-62.sh
 
       - name: Prepare platform-specific build
         run: |
           echo "🚀 Building for DSM ${{ needs.setup.outputs.dsm_version }} / platform: ${{ matrix.platform }}"
-          ./build-parallel.sh ${{ needs.setup.outputs.dsm_version }} prepare
+          ./build-parallel-62.sh ${{ needs.setup.outputs.dsm_version }} prepare
 
       - name: Build Docker image for ${{ matrix.platform }}
         run: |
           export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
-          ./build-parallel.sh ${{ needs.setup.outputs.dsm_version }} build ${{ matrix.platform }}
+          ./build-parallel-62.sh ${{ needs.setup.outputs.dsm_version }} build ${{ matrix.platform }}
 
       - name: Push to Docker Hub
         if: github.event.inputs.push_to_hub == 'true'
@@ -191,13 +191,13 @@ jobs:
         uses: actions/cache@v3
         with:
           path: cache/
-          key: synology-toolkit-${{ needs.setup.outputs.dsm_version }}-all-${{ hashFiles('build-parallel.sh') }}
+          key: synology-toolkit-${{ needs.setup.outputs.dsm_version }}-all-${{ hashFiles('build-parallel-62.sh') }}
           restore-keys: |
             synology-toolkit-${{ needs.setup.outputs.dsm_version }}-all-
             synology-toolkit-${{ needs.setup.outputs.dsm_version }}-
 
       - name: Make build script executable
-        run: chmod +x build-parallel.sh
+        run: chmod +x build-parallel-62.sh
 
       - name: Build all platforms
         run: |
@@ -205,7 +205,7 @@ jobs:
           echo "🚀 Building all platforms for DSM ${DSM_VER} with parallel optimization"
           export MAX_PARALLEL_JOBS=6
           export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
-          ./build-parallel.sh ${DSM_VER} all
+          ./build-parallel-62.sh ${DSM_VER} all
 
       - name: Push to Docker Hub
         if: github.event.inputs.push_to_hub == 'true'
