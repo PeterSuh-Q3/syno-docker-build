@@ -51,7 +51,7 @@ TOOLCHAIN_VERS["7.2"]="7.2-72806"
 TOOLCHAIN_VERS["7.3"]="7.3-86009"
 
 # GCC/glibc versions per DSM version
-GCCLIB_VERS["6.2"]="gcc493_glibc220"
+GCCLIB_VERS["6.2"]="gcc493_glibc220_linaro"
 GCCLIB_VERS["7.0"]="gcc750_glibc226"
 GCCLIB_VERS["7.1"]="gcc850_glibc226"
 GCCLIB_VERS["7.2"]="gcc1220_glibc236"
