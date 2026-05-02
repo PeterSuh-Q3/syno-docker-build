@@ -3,9 +3,9 @@
 # Parallel Build Script for Synology Compiler - DSM 6.2 Only
 # Performance optimized version with parallel downloads and builds
 #
-# Download sources (SourceForge only):
-#   - Dev toolkit (.txz) : https://sourceforge.net/projects/dsgpl/files/toolkit/DSM6.2/
-#   - Toolchain (.txz)   : https://sourceforge.net/projects/dsgpl/files/Tool%20Chain/DSM%206.2.4%20Tool%20Chains/
+# Download sources (mixed):
+#   - Toolchain (.txz)   : SourceForge (DSM 6.2.4 Tool Chains)
+#   - Dev toolkit (.txz) : Synology global download server
 #
 # Usage: ./build-parallel-62.sh [COMMAND] [PLATFORM]
 #   COMMAND: prepare, build, platforms, all (default: all)
@@ -16,13 +16,14 @@ MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 
 # DSM 6.2 fixed constants
 TOOLKIT_VER="6.2"
+TOOLCHAIN_VER="6.1-15284"
 GCCLIB_VER="gcc493_glibc220_linaro"
 
-# SourceForge base URLs
-# Dev toolkit: flat directory, one file per platform
-SF_TOOLKIT="https://sourceforge.net/projects/dsgpl/files/toolkit/DSM6.2"
-# Toolchain: per-platform subdirectory named after OS/kernel/arch
-SF_TOOLCHAIN="https://sourceforge.net/projects/dsgpl/files/Tool%20Chain/DSM%206.2.4%20Tool%20Chains"
+# Toolchain source: SourceForge (DSM 6.2.4 Tool Chains)
+SF_BASE="https://sourceforge.net/projects/dsgpl/files/Tool%20Chain/DSM%206.2.4%20Tool%20Chains"
+
+# Dev toolkit source: Synology global download server
+SYNO_SERVER="https://global.synologydownload.com"
 
 # SourceForge directory names per platform (kernel version already embedded)
 declare -A SF_DIRS
@@ -45,9 +46,10 @@ PLATFORM_LIST="apollolake:4.4.59 avoton:3.10.105 braswell:3.10.105 broadwell:3.1
 ###############################################################################
 function print_info() {
     echo "📋 DSM Version: ${TOOLKIT_VER}" >&2
+    echo "   Toolchain:   ${TOOLCHAIN_VER}" >&2
     echo "   GCC/glibc:   ${GCCLIB_VER}" >&2
-    echo "   Dev toolkit: SourceForge → /toolkit/DSM6.2/" >&2
-    echo "   Toolchain:   SourceForge → /Tool Chain/DSM 6.2.4 Tool Chains/" >&2
+    echo "   Toolchain:   SourceForge (DSM 6.2.4 Tool Chains)" >&2
+    echo "   Dev toolkit: Synology global download server" >&2
     echo "   Platforms:   $(echo ${PLATFORM_LIST} | wc -w | tr -d ' ') platform(s)" >&2
 }
 
@@ -85,15 +87,12 @@ function download_file() {
     local description="$3"
 
     echo "📥 Downloading ${description}..."
-    echo "   URL: ${url}"
-    if curl -fSL --progress-bar "${url}" -o "${output_file}.tmp"; then
+    if curl -L --fail --progress-bar "${url}" -o "${output_file}.tmp"; then
         mv "${output_file}.tmp" "${output_file}"
         echo "✅ ${description} completed"
         return 0
     else
-        local exit_code=$?
-        echo "❌ Download failed (curl exit code: ${exit_code}): ${description}"
-        echo "   Failed URL: ${url}"
+        echo "❌ Failed to download ${description}"
         rm -f "${output_file}.tmp"
         return 1
     fi
@@ -110,24 +109,24 @@ function prepare_parallel() {
     for P in ${PLATFORM_LIST}; do
         local PLATFORM="$(echo ${P} | cut -d':' -f1)"
 
-        # --- Dev toolkit (SourceForge: /toolkit/DSM6.2/) ---
-        # URL: {SF_TOOLKIT}/ds.{PLATFORM}-{TOOLKIT_VER}.dev.txz/download
+        # --- Dev toolkit (Synology server) ---
+        # URL: {SYNO_SERVER}/download/ToolChain/toolkit/{TOOLKIT_VER}/{PLATFORM}/ds.{PLATFORM}-{TOOLKIT_VER}.dev.txz
         local dev_file="${CACHE_DIR}/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz"
         if [ ! -f "${dev_file}" ]; then
-            local dev_url="${SF_TOOLKIT}/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz/download"
-            job_list+=("download_file|${dev_url}|${dev_file}|${PLATFORM} dev toolkit [SF:toolkit/DSM6.2]")
+            local dev_url="${SYNO_SERVER}/download/ToolChain/toolkit/${TOOLKIT_VER}/${PLATFORM}/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz"
+            job_list+=("download_file|${dev_url}|${dev_file}|${PLATFORM} dev toolkit [Synology]")
         else
             echo "✅ ${PLATFORM} dev toolkit already exists"
         fi
 
-        # --- Toolchain (SourceForge: /Tool Chain/DSM 6.2.4 Tool Chains/) ---
-        # URL: {SF_TOOLCHAIN}/{SF_DIR}/{PLATFORM}-{GCCLIB_VER}_x86_64-GPL.txz/download
+        # --- Toolchain (SourceForge) ---
+        # URL: {SF_BASE}/{SF_DIR}/{PLATFORM}-{GCCLIB_VER}_x86_64-GPL.txz/download
         local tc_filename="${PLATFORM}-${GCCLIB_VER}_x86_64-GPL.txz"
         local tc_file="${CACHE_DIR}/${tc_filename}"
-        local tc_url="${SF_TOOLCHAIN}/${SF_DIRS[${PLATFORM}]}/${tc_filename}/download"
+        local tc_url="${SF_BASE}/${SF_DIRS[${PLATFORM}]}/${tc_filename}/download"
 
         if [ ! -f "${tc_file}" ]; then
-            job_list+=("download_file|${tc_url}|${tc_file}|${PLATFORM} toolchain [SF:Tool Chain/DSM6.2.4]")
+            job_list+=("download_file|${tc_url}|${tc_file}|${PLATFORM} toolchain [SourceForge]")
         else
             echo "✅ ${PLATFORM} toolchain already exists"
         fi
