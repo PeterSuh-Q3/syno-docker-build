@@ -111,7 +111,7 @@ function prepare_parallel() {
         # URL: {SYNO_SERVER}/download/ToolChain/toolkit/{TOOLKIT_VER}/{PLATFORM}/ds.{PLATFORM}-{TOOLKIT_VER}.dev.txz
         local dev_file="${CACHE_DIR}/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz"
         if [ ! -f "${dev_file}" ]; then
-            local dev_url="${SYNO_SERVER}/download/ToolChain/toolkit/${TOOLKIT_VER}/${PLATFORM}/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz"
+            local dev_url="${SYNO_SERVER}/download/ToolChain/toolkit/${TOOLKIT_VER}/ds.${PLATFORM}-${TOOLKIT_VER}.dev.txz"
             job_list+=("download_file|${dev_url}|${dev_file}|${PLATFORM} dev toolkit [Synology]")
         else
             echo "✅ ${PLATFORM} dev toolkit already exists"
