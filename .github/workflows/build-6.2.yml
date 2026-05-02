@@ -1,4 +1,4 @@
-name: Build and Push Synology Compiler (Performance Optimized)
+name: Build and Push(6.2)
 
 on:
   workflow_dispatch:
