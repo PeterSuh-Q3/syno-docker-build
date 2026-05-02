@@ -31,7 +31,7 @@ SF_DIRS["avoton"]="Intel%20x86%20Linux%203.10.105%20%28Avoton%29"
 SF_DIRS["braswell"]="Intel%20x86%20Linux%203.10.105%20%28Braswell%29"
 SF_DIRS["broadwell"]="Intel%20x86%20Linux%203.10.105%20%28Broadwell%29"
 SF_DIRS["broadwellnk"]="Intel%20x86%20Linux%204.4.59%20%28Broadwellnk%29"
-SF_DIRS["broadwellntbap"]="Intel%20x86%20Linux%204.4.59%20%28Broadwellntbap%29"
+#SF_DIRS["broadwellntbap"]="Intel%20x86%20Linux%204.4.59%20%28Broadwellntbap%29"
 SF_DIRS["bromolow"]="Intel%20x86%20linux%203.10.105%20%28Bromolow%29"
 SF_DIRS["cedarview"]="Intel%20x86%20Linux%203.10.105%20%28Cedarview%29"
 SF_DIRS["denverton"]="Intel%20x86%20Linux%204.4.59%20%28Denverton%29"
@@ -40,7 +40,7 @@ SF_DIRS["purley"]="Intel%20x86%20Linux%204.4.59%20%28Purley%29"
 SF_DIRS["v1000"]="Intel%20x86%20Linux%204.4.59%20%28V1000%29"
 
 # DSM 6.2 platform list (platform:kernel_version)
-PLATFORM_LIST="apollolake:4.4.59 avoton:3.10.105 braswell:3.10.105 broadwell:3.10.105 broadwellnk:4.4.59 broadwellntbap:4.4.59 bromolow:3.10.105 cedarview:3.10.105 denverton:4.4.59 geminilake:4.4.59 purley:4.4.59 v1000:4.4.59"
+PLATFORM_LIST="apollolake:4.4.59 avoton:3.10.105 braswell:3.10.105 broadwell:3.10.105 broadwellnk:4.4.59 bromolow:3.10.105 cedarview:3.10.105 denverton:4.4.59 geminilake:4.4.59 purley:4.4.59 v1000:4.4.59"
 
 ###############################################################################
 function print_info() {
