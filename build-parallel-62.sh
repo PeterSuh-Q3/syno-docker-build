@@ -16,7 +16,6 @@ MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 
 # DSM 6.2 fixed constants
 TOOLKIT_VER="6.2"
-TOOLCHAIN_VER="6.1-15284"
 GCCLIB_VER="gcc493_glibc220_linaro"
 
 # Toolchain source: SourceForge (DSM 6.2.4 Tool Chains)
@@ -46,7 +45,6 @@ PLATFORM_LIST="apollolake:4.4.59 avoton:3.10.105 braswell:3.10.105 broadwell:3.1
 ###############################################################################
 function print_info() {
     echo "📋 DSM Version: ${TOOLKIT_VER}" >&2
-    echo "   Toolchain:   ${TOOLCHAIN_VER}" >&2
     echo "   GCC/glibc:   ${GCCLIB_VER}" >&2
     echo "   Toolchain:   SourceForge (DSM 6.2.4 Tool Chains)" >&2
     echo "   Dev toolkit: Synology global download server" >&2
