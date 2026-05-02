@@ -78,6 +78,7 @@ jobs:
       - name: Resolve DSM version and platforms
         id: resolve
         run: |
+          set -x 
           chmod +x build-parallel-62.sh
           DSM_VER="${{ github.event.inputs.dsm_version || '6.2' }}"
           echo "dsm_version=${DSM_VER}" >> $GITHUB_OUTPUT
