@@ -78,13 +78,13 @@ jobs:
       - name: Resolve DSM version and platforms
         id: resolve
         run: |
-          set -x 
+          set -x
           chmod +x build-parallel-62.sh
           DSM_VER="${{ github.event.inputs.dsm_version || '6.2' }}"
           echo "dsm_version=${DSM_VER}" >> $GITHUB_OUTPUT
 
-          # Get platform list as JSON array from the build script
-          MATRIX_JSON=$(./build-parallel-62.sh "${DSM_VER}" platforms)
+          # Get platform list as JSON array from the build script (1줄 보장)
+          MATRIX_JSON=$(./build-parallel-62.sh "${DSM_VER}" platforms | tr -d '\n' | tr -d '\r')
           echo "platform_matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
 
           # Also output as space-separated list for build-all job
@@ -93,7 +93,7 @@ jobs:
 
           echo "DSM Version: ${DSM_VER}"
           echo "Platforms: ${MATRIX_JSON}"
-
+          
   # Matrix job to build platforms in parallel
   build-matrix:
     needs: [setup]
