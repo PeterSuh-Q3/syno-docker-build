@@ -1,5 +1,11 @@
 # 🚀 Synology Docker Build - Performance Optimization Update
 
+> ⚠️ **현행 모델 안내 (업데이트됨).** 이 문서의 일부 예시는 과거의 "플랫폼별 매트릭스 빌드"
+> 방식을 설명합니다. 현재 워크플로우는 **DSM 버전당 fat 이미지 하나(`:{dsm}`)** 만 게시하며,
+> `platforms` / `build_method` 입력과 per-platform 매트릭스는 제거되었습니다. 아래의 병렬
+> **다운로드**(`MAX_PARALLEL_JOBS`)·캐싱 최적화는 그대로 유효합니다. 최신 사용법은
+> [README.md](README.md) / [QUICKSTART.md](QUICKSTART.md) 를 참고하세요.
+
 ## 📊 Performance Improvements
 
 This update introduces significant performance optimizations to the Synology Docker build system, reducing build times by **60-70%** through intelligent parallelization and caching strategies.

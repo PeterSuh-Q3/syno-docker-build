@@ -1,147 +1,29 @@
 name: Build and Push (6.2)
 
+# Publishes the fat image dante90/syno-compiler:6.2 (all DSM 6.2 platforms).
+# DSM 6.2 toolchains come from SourceForge; build-parallel-62.sh takes NO
+# version argument (its first argument is the command).
+
 on:
   workflow_dispatch:
     inputs:
-      platforms:
-        description: 'Platforms to build ("all" or pick one)'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - 'all'
-          - 'apollolake'
-          - 'avoton'
-          - 'braswell'
-          - 'broadwell'
-          - 'broadwellnk'
-          - 'bromolow'
-          - 'cedarview'
-          - 'denverton'
-          - 'geminilake'
-          - 'purley'
-          - 'v1000'
       push_to_hub:
         description: 'Push to Docker Hub'
         required: true
         default: true
         type: boolean
       tag_latest:
-        description: 'Also tag as latest'
+        description: 'Also tag as :latest'
         required: true
         default: false
         type: boolean
-      build_method:
-        description: 'Build Method (parallel = one job per platform, sequential = single job)'
-        required: true
-        default: 'parallel'
-        type: choice
-        options:
-          - 'parallel'
-          - 'sequential'
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: dante90/syno-compiler
-  DSM_VERSION: '6.2'
 
 jobs:
-  # Setup job: generate the platform matrix from the requested scope.
-  # NOTE: build-parallel-62.sh is 6.2-only and takes NO version argument;
-  # its first argument is the command (platforms/prepare/build/all).
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      platforms_input: ${{ steps.resolve.outputs.platforms_input }}
-      platform_matrix: ${{ steps.resolve.outputs.platform_matrix }}
-      platform_list: ${{ steps.resolve.outputs.platform_list }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Resolve platforms
-        id: resolve
-        run: |
-          chmod +x build-parallel-62.sh
-          PLATFORMS_INPUT="${{ github.event.inputs.platforms || 'all' }}"
-          echo "platforms_input=${PLATFORMS_INPUT}" >> $GITHUB_OUTPUT
-
-          if [ "${PLATFORMS_INPUT}" = "all" ]; then
-            MATRIX_JSON=$(./build-parallel-62.sh platforms | tr -d '\n\r')
-          else
-            MATRIX_JSON="[\"${PLATFORMS_INPUT}\"]"
-          fi
-          echo "platform_matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
-
-          PLATFORM_LIST=$(echo "${MATRIX_JSON}" | tr -d '[]"' | tr ',' ' ')
-          echo "platform_list=${PLATFORM_LIST}" >> $GITHUB_OUTPUT
-
-          echo "Scope:     ${PLATFORMS_INPUT}"
-          echo "Platforms: ${MATRIX_JSON}"
-
-  # Matrix job: one job per platform (parallel build method).
-  build-matrix:
-    needs: [setup]
-    if: ${{ (github.event.inputs.build_method || 'parallel') == 'parallel' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.setup.outputs.platform_matrix) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-
-      - name: Log in to Docker Hub
-        if: github.event.inputs.push_to_hub == 'true'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache-${{ matrix.platform }}
-          key: ${{ runner.os }}-buildx-6.2-${{ matrix.platform }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-6.2-${{ matrix.platform }}-
-
-      - name: Cache Synology toolkits
-        uses: actions/cache@v3
-        with:
-          path: cache/
-          key: synology-toolkit-6.2-${{ matrix.platform }}-${{ hashFiles('build-parallel-62.sh') }}
-          restore-keys: |
-            synology-toolkit-6.2-${{ matrix.platform }}-
-            synology-toolkit-6.2-
-
-      - name: Make build script executable
-        run: chmod +x build-parallel-62.sh
-
-      - name: Build Docker image for ${{ matrix.platform }}
-        run: |
-          echo "🚀 Building DSM 6.2 / platform: ${{ matrix.platform }}"
-          ./build-parallel-62.sh build ${{ matrix.platform }}
-
-      - name: Push to Docker Hub
-        if: github.event.inputs.push_to_hub == 'true'
-        run: |
-          docker push ${{ env.IMAGE_NAME }}:6.2-${{ matrix.platform }}
-          echo "✅ Pushed ${{ env.IMAGE_NAME }}:6.2-${{ matrix.platform }}"
-
-  # Single job (sequential build method).
-  #   scope = all        -> one fat image tagged :6.2 (+ :latest if requested)
-  #   scope = <platform> -> one image tagged :6.2-${platform}
-  build-all:
-    needs: [setup]
-    if: ${{ (github.event.inputs.build_method || 'parallel') == 'sequential' }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -164,50 +46,35 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-6.2-all-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-6.2-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-6.2-all-
+            ${{ runner.os }}-buildx-6.2-
 
       - name: Cache Synology toolkits
         uses: actions/cache@v3
         with:
           path: cache/
-          key: synology-toolkit-6.2-all-${{ hashFiles('build-parallel-62.sh') }}
+          key: synology-toolkit-6.2-${{ hashFiles('build-parallel-62.sh') }}
           restore-keys: |
-            synology-toolkit-6.2-all-
             synology-toolkit-6.2-
 
-      - name: Make build script executable
-        run: chmod +x build-parallel-62.sh
-
-      - name: Build (sequential)
+      - name: Build image (all platforms)
         run: |
-          SCOPE="${{ needs.setup.outputs.platforms_input }}"
+          chmod +x build-parallel-62.sh
           export MAX_PARALLEL_JOBS=6
           export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
-          if [ "${SCOPE}" = "all" ]; then
-            echo "🚀 Building ALL platforms for DSM 6.2 (fat image)"
-            ./build-parallel-62.sh all
-          else
-            echo "🚀 Building DSM 6.2 / platform: ${SCOPE}"
-            ./build-parallel-62.sh build ${SCOPE}
-          fi
+          echo "🚀 Building ${IMAGE_NAME}:6.2 (fat image, all platforms)"
+          ./build-parallel-62.sh all
 
       - name: Push to Docker Hub
         if: github.event.inputs.push_to_hub == 'true'
         run: |
-          SCOPE="${{ needs.setup.outputs.platforms_input }}"
-          if [ "${SCOPE}" = "all" ]; then
-            docker push ${{ env.IMAGE_NAME }}:6.2
-            echo "✅ Pushed ${{ env.IMAGE_NAME }}:6.2"
-            if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
-              docker tag ${{ env.IMAGE_NAME }}:6.2 ${{ env.IMAGE_NAME }}:latest
-              docker push ${{ env.IMAGE_NAME }}:latest
-              echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
-            else
-              echo "ℹ️  Skipping latest tag (tag_latest=false)"
-            fi
+          docker push ${{ env.IMAGE_NAME }}:6.2
+          echo "✅ Pushed ${{ env.IMAGE_NAME }}:6.2"
+
+          if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
+            docker push ${{ env.IMAGE_NAME }}:latest
+            echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
           else
-            docker push ${{ env.IMAGE_NAME }}:6.2-${SCOPE}
-            echo "✅ Pushed ${{ env.IMAGE_NAME }}:6.2-${SCOPE}"
+            echo "ℹ️  Skipping :latest (tag_latest=false)"
           fi

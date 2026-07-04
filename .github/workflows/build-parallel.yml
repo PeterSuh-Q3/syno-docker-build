@@ -1,5 +1,11 @@
 name: Build and Push Synology Compiler (Performance Optimized)
 
+# Publishes ONE fat image per DSM version: dante90/syno-compiler:{dsm}
+# (contains every platform for that DSM; the platform is chosen at `docker run`
+# time via `compile-module <platform>`). This matches the tags consumed
+# downstream (:7.1 / :7.2 / :7.3 ...). Parallelism is in the toolchain
+# downloads (MAX_PARALLEL_JOBS), not in per-platform image tags.
+
 on:
   workflow_dispatch:
     inputs:
@@ -14,165 +20,23 @@ on:
           - '7.2'
           - '7.3'
           - '7.4'
-      platforms:
-        description: 'Platforms to build ("all" or pick one)'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - 'all'
-          - 'epyc7003ntb'
-          - 'epyc7002'
-          - 'geminilakenk'
-          - 'r1000nk'
-          - 'v1000nk'
-          - 'apollolake'
-          - 'avoton'
-          - 'braswell'
-          - 'broadwell'
-          - 'broadwellnk'
-          - 'broadwellnkv2'
-          - 'broadwellntbap'
-          - 'bromolow'
-          - 'cedarview'
-          - 'denverton'
-          - 'geminilake'
-          - 'purley'
-          - 'r1000'
-          - 'v1000'
       push_to_hub:
         description: 'Push to Docker Hub'
         required: true
         default: true
         type: boolean
       tag_latest:
-        description: 'Also tag as latest'
+        description: 'Also tag as :latest'
         required: true
         default: false
         type: boolean
-      build_method:
-        description: 'Build Method (parallel = one job per platform, sequential = single job)'
-        required: true
-        default: 'parallel'
-        type: choice
-        options:
-          - 'parallel'
-          - 'sequential'
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: dante90/syno-compiler
-  DSM_VERSION: ${{ github.event.inputs.dsm_version || '7.3' }}
 
 jobs:
-  # Setup job: resolve DSM version and generate dynamic platform matrix
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      dsm_version: ${{ steps.resolve.outputs.dsm_version }}
-      platforms_input: ${{ steps.resolve.outputs.platforms_input }}
-      platform_matrix: ${{ steps.resolve.outputs.platform_matrix }}
-      platform_list: ${{ steps.resolve.outputs.platform_list }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Resolve DSM version and platforms
-        id: resolve
-        run: |
-          chmod +x build-parallel.sh
-          DSM_VER="${{ github.event.inputs.dsm_version || '7.3' }}"
-          PLATFORMS_INPUT="${{ github.event.inputs.platforms || 'all' }}"
-          echo "dsm_version=${DSM_VER}" >> $GITHUB_OUTPUT
-          echo "platforms_input=${PLATFORMS_INPUT}" >> $GITHUB_OUTPUT
-
-          # Build the matrix from the requested scope:
-          #   all           -> every platform for this DSM version
-          #   <platform>     -> just that one platform
-          if [ "${PLATFORMS_INPUT}" = "all" ]; then
-            MATRIX_JSON=$(./build-parallel.sh "${DSM_VER}" platforms)
-          else
-            MATRIX_JSON="[\"${PLATFORMS_INPUT}\"]"
-          fi
-          echo "platform_matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
-
-          # Also output as space-separated list
-          PLATFORM_LIST=$(echo "${MATRIX_JSON}" | tr -d '[]"' | tr ',' ' ')
-          echo "platform_list=${PLATFORM_LIST}" >> $GITHUB_OUTPUT
-
-          echo "DSM Version: ${DSM_VER}"
-          echo "Scope:       ${PLATFORMS_INPUT}"
-          echo "Platforms:   ${MATRIX_JSON}"
-
-  # Matrix job: one job per platform (parallel build method).
-  # The matrix already reflects the requested scope (all platforms or a single one),
-  # so this handles both "all + parallel" and "single platform + parallel".
-  build-matrix:
-    needs: [setup]
-    if: ${{ (github.event.inputs.build_method || 'parallel') == 'parallel' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.setup.outputs.platform_matrix) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-
-      - name: Log in to Docker Hub
-        if: github.event.inputs.push_to_hub == 'true'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache-${{ matrix.platform }}
-          key: ${{ runner.os }}-buildx-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-
-
-      - name: Cache Synology toolkits
-        uses: actions/cache@v3
-        with:
-          path: cache/
-          key: synology-toolkit-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-${{ hashFiles('build-parallel.sh') }}
-          restore-keys: |
-            synology-toolkit-${{ needs.setup.outputs.dsm_version }}-${{ matrix.platform }}-
-            synology-toolkit-${{ needs.setup.outputs.dsm_version }}-
-
-      - name: Make build script executable
-        run: chmod +x build-parallel.sh
-
-      - name: Build Docker image for ${{ matrix.platform }}
-        run: |
-          echo "🚀 Building DSM ${{ needs.setup.outputs.dsm_version }} / platform: ${{ matrix.platform }}"
-          # `build <platform>` downloads only this platform's toolkit and bakes
-          # only this platform into the image (no separate prepare step needed).
-          ./build-parallel.sh ${{ needs.setup.outputs.dsm_version }} build ${{ matrix.platform }}
-
-      - name: Push to Docker Hub
-        if: github.event.inputs.push_to_hub == 'true'
-        run: |
-          DSM_VER="${{ needs.setup.outputs.dsm_version }}"
-          docker tag dante90/syno-compiler:${DSM_VER}-${{ matrix.platform }} ${{ env.IMAGE_NAME }}:${DSM_VER}-${{ matrix.platform }}
-          docker push ${{ env.IMAGE_NAME }}:${DSM_VER}-${{ matrix.platform }}
-          echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}-${{ matrix.platform }}"
-
-  # Single job (sequential build method): builds the whole scope in one runner.
-  #   scope = all        -> one fat image tagged :${DSM} (+ :latest if requested)
-  #   scope = <platform> -> one image tagged :${DSM}-${platform}
-  build-all:
-    needs: [setup]
-    if: ${{ (github.event.inputs.build_method || 'parallel') == 'sequential' }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -195,52 +59,37 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ needs.setup.outputs.dsm_version }}-all-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ github.event.inputs.dsm_version }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-${{ needs.setup.outputs.dsm_version }}-all-
+            ${{ runner.os }}-buildx-${{ github.event.inputs.dsm_version }}-
 
       - name: Cache Synology toolkits
         uses: actions/cache@v3
         with:
           path: cache/
-          key: synology-toolkit-${{ needs.setup.outputs.dsm_version }}-all-${{ hashFiles('build-parallel.sh') }}
+          key: synology-toolkit-${{ github.event.inputs.dsm_version }}-${{ hashFiles('build-parallel.sh') }}
           restore-keys: |
-            synology-toolkit-${{ needs.setup.outputs.dsm_version }}-all-
-            synology-toolkit-${{ needs.setup.outputs.dsm_version }}-
+            synology-toolkit-${{ github.event.inputs.dsm_version }}-
 
-      - name: Make build script executable
-        run: chmod +x build-parallel.sh
-
-      - name: Build (sequential)
+      - name: Build image (all platforms)
         run: |
-          DSM_VER="${{ needs.setup.outputs.dsm_version }}"
-          SCOPE="${{ needs.setup.outputs.platforms_input }}"
+          chmod +x build-parallel.sh
+          DSM_VER="${{ github.event.inputs.dsm_version || '7.3' }}"
           export MAX_PARALLEL_JOBS=6
           export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
-          if [ "${SCOPE}" = "all" ]; then
-            echo "🚀 Building ALL platforms for DSM ${DSM_VER} (fat image)"
-            ./build-parallel.sh ${DSM_VER} all
-          else
-            echo "🚀 Building DSM ${DSM_VER} / platform: ${SCOPE}"
-            ./build-parallel.sh ${DSM_VER} build ${SCOPE}
-          fi
+          echo "🚀 Building ${IMAGE_NAME}:${DSM_VER} (fat image, all platforms)"
+          ./build-parallel.sh "${DSM_VER}" all
 
       - name: Push to Docker Hub
         if: github.event.inputs.push_to_hub == 'true'
         run: |
-          DSM_VER="${{ needs.setup.outputs.dsm_version }}"
-          SCOPE="${{ needs.setup.outputs.platforms_input }}"
-          if [ "${SCOPE}" = "all" ]; then
-            docker push ${{ env.IMAGE_NAME }}:${DSM_VER}
-            echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}"
-            if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
-              docker tag ${{ env.IMAGE_NAME }}:${DSM_VER} ${{ env.IMAGE_NAME }}:latest
-              docker push ${{ env.IMAGE_NAME }}:latest
-              echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
-            else
-              echo "ℹ️  Skipping latest tag (tag_latest=false)"
-            fi
+          DSM_VER="${{ github.event.inputs.dsm_version || '7.3' }}"
+          docker push ${{ env.IMAGE_NAME }}:${DSM_VER}
+          echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}"
+
+          if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
+            docker push ${{ env.IMAGE_NAME }}:latest
+            echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
           else
-            docker push ${{ env.IMAGE_NAME }}:${DSM_VER}-${SCOPE}
-            echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}-${SCOPE}"
+            echo "ℹ️  Skipping :latest (tag_latest=false)"
           fi

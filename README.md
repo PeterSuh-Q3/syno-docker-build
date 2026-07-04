@@ -47,46 +47,52 @@ GitHub 웹 인터페이스에서:
 ```
 Repository → Actions → "Build and Push Synology Compiler (Performance Optimized)"
 → Run workflow 클릭
-→ DSM Version, Platforms, Push to Hub, Build Method 선택
+→ DSM Version, Push to Hub, Also tag latest 선택
 ```
+
+각 실행은 해당 DSM 버전의 **전 플랫폼을 담은 단일 이미지** `dante90/syno-compiler:{dsm}` 를 게시합니다.
 
 또는 GitHub CLI:
 
 ```bash
-# DSM 7.3 전체 플랫폼 빌드
-gh workflow run build-parallel.yml -f dsm_version=7.3 -f platforms=all -f push_to_hub=true -f build_method=parallel
+# DSM 7.3 빌드 → dante90/syno-compiler:7.3
+gh workflow run build-parallel.yml -f dsm_version=7.3 -f push_to_hub=true
 
-# DSM 7.2 broadwell만 빌드
-gh workflow run build-parallel.yml -f dsm_version=7.2 -f platforms=broadwell -f push_to_hub=false -f build_method=parallel
+# DSM 7.4 빌드 (+ latest 갱신) → dante90/syno-compiler:7.4 (+ :latest)
+gh workflow run build-parallel.yml -f dsm_version=7.4 -f push_to_hub=true -f tag_latest=true
+
+# DSM 6.2 (별도 워크플로우)
+gh workflow run build-6.2.yml -f push_to_hub=true
 ```
 
 ### 워크플로우 입력 옵션
 
 | 입력 | 설명 | 기본값 | 옵션 |
 |------|------|--------|------|
-| `dsm_version` | DSM 버전 | `7.3` | `7.1`, `7.2`, `7.3` |
-| `platforms` | 빌드할 플랫폼 | `all` | `all` 또는 개별 플랫폼명 |
+| `dsm_version` | DSM 버전 | `7.3` | `7.0`, `7.1`, `7.2`, `7.3`, `7.4` |
 | `push_to_hub` | Docker Hub 푸시 여부 | `true` | `true`, `false` |
-| `build_method` | 빌드 방식 | `parallel` | `parallel`, `sequential` |
+| `tag_latest` | `:latest` 태그도 갱신 | `false` | `true`, `false` |
 
 ### 로컬 CLI 사용법
 
 ```bash
-# DSM 7.3 전체 빌드 (기본값)
+# DSM 7.3 전체 빌드 → dante90/syno-compiler:7.3 (기본값)
 ./build-parallel.sh 7.3 all
 
-# DSM 7.2 준비(다운로드)만
+# 다운로드(준비)만
 ./build-parallel.sh 7.2 prepare
 
-# DSM 7.1 특정 플랫폼만 빌드
+# 플랫폼 목록 JSON 출력
+./build-parallel.sh 7.3 platforms
+
+# 단일 플랫폼 로컬 테스트 이미지 (게시용 아님) → :7.1-broadwell
 ./build-parallel.sh 7.1 build broadwell
 
 # 환경변수로 DSM 버전 전달
 DSM_VERSION=7.2 ./build-parallel.sh all
-
-# 플랫폼 목록 JSON 출력 (GitHub Actions 동적 매트릭스용)
-./build-parallel.sh 7.3 platforms
 ```
+
+> 로컬 실행에는 bash 4+ 가 필요합니다 (macOS 기본 bash 3.2 불가 → `brew install bash`).
 
 ## DSM 버전별 플랫폼
 
@@ -147,40 +153,30 @@ DSM_VERSION=7.2 ./build-parallel.sh all
 
 ## Docker 이미지 태그 전략
 
+**게시되는 태그는 DSM 버전당 하나의 fat 이미지뿐입니다.** 이미지 안에 해당 DSM 의 모든
+플랫폼 툴체인이 들어 있고, 플랫폼은 `docker run ... compile-module <platform>` 로 런타임에 선택합니다.
+
 ```
-dante90/syno-compiler:{dsm_version}-{platform}   # 단일 플랫폼 이미지 (예: 7.3-broadwell)
-                                                  #   해당 플랫폼 툴체인만 포함 (경량)
-dante90/syno-compiler:{dsm_version}               # 전체 플랫폼 포함 이미지 (fat)
-dante90/syno-compiler:latest                       # 전체 빌드 + tag_latest=true 시
+dante90/syno-compiler:{dsm_version}   # 해당 DSM 전 플랫폼 포함 (예: 7.3, 7.4, 6.2)
+dante90/syno-compiler:latest          # tag_latest=true 로 빌드한 버전을 가리킴
 ```
 
-- **단일 플랫폼 이미지** (`{dsm}-{platform}`): `platforms` 를 특정 플랫폼으로 지정하거나,
-  `parallel` 방식으로 빌드 시 플랫폼별로 생성됩니다. 해당 플랫폼의 툴체인만 담고 있어 작습니다.
-- **전체 이미지** (`{dsm}` / `latest`): `platforms=all` + `build_method=sequential` 로 빌드할 때만
-  생성되며, 모든 플랫폼 툴체인을 포함하는 대용량 이미지입니다. `latest` 는 `tag_latest=true` 일 때만 갱신됩니다.
+> ⚠️ `{dsm}-{platform}` 형태의 접미사 태그는 **게시하지 않습니다.** 소비 측 프로그램들이
+> `:{dsm}` (예: `:7.3`) 만 참조하므로 규칙을 통일합니다. `build-parallel.sh ... build <platform>`
+> 은 로컬 테스트용 이미지를 만들 뿐이며 워크플로우에서 푸시되지 않습니다.
 
 ## 워크플로우 상세 동작
 
 ```
-1. [setup] 빌드 범위 결정 및 플랫폼 매트릭스 동적 생성
-   └─ platforms=all  → build-parallel.sh 의 platforms 커맨드로 전체 플랫폼 JSON 출력
-   └─ platforms=단일 → 해당 플랫폼 1개짜리 JSON 매트릭스
-
-2. build_method 에 따라 아래 중 하나만 실행:
-
-   [build-matrix]  (build_method=parallel)   플랫폼별 병렬 잡
-     a. Checkout / Buildx / Docker Hub 로그인 / 캐시 복원
-     b. build-parallel.sh {dsm} build {platform}
-        └─ 해당 플랫폼 dev toolkit + toolchain 만 병렬 다운로드
-        └─ 필수 파일 존재/비어있음 검증 (실패 시 abort)
-        └─ Dockerfile.template → Dockerfile 생성 (해당 플랫폼만)
-        └─ Docker 이미지 빌드 (alpine:3.19 stage → debian:12-slim final)
-     c. Docker Hub에 :{dsm}-{platform} 푸시
-
-   [build-all]     (build_method=sequential)  단일 잡
-     a. Checkout / Buildx / Docker Hub 로그인 / 캐시 복원
-     b. platforms=all  → build-parallel.sh {dsm} all   → :{dsm} (+ latest) 푸시
-        platforms=단일 → build-parallel.sh {dsm} build {platform} → :{dsm}-{platform} 푸시
+[build]  단일 잡 (DSM 버전당 fat 이미지 1개)
+  a. Checkout / Buildx / Docker Hub 로그인 / 캐시 복원 (Docker layers + toolkits)
+  b. build-parallel.sh {dsm} all
+     └─ 전 플랫폼 dev toolkit + toolchain 을 병렬 다운로드 (MAX_PARALLEL_JOBS)
+     └─ 다운로드 목록/크기 출력, 필수 파일 존재/비어있음 검증 (실패 시 abort)
+     └─ Dockerfile.template → Dockerfile 생성 (전 플랫폼)
+     └─ Docker 이미지 빌드 (alpine:3.19 stage → debian:12-slim final)
+     └─ tag_latest=true 이면 :latest 도 함께 태깅
+  c. Docker Hub 에 :{dsm} (+ :latest) 푸시
 ```
 
 > DSM 6.2 는 `build-6.2.yml` + `build-parallel-62.sh` 를 사용합니다 (toolchain 은 SourceForge 에서 받음).
@@ -211,12 +207,19 @@ ARCH=x86_64
 ### 모듈 컴파일
 
 ```bash
-# apollolake 플랫폼용 모듈 컴파일 (DSM 7.3)
+# apollolake 플랫폼용 모듈 컴파일 (DSM 7.3 이미지에서 플랫폼은 런타임 인자로 선택)
 docker run -u $(id -u) --rm -t \
   -v "/path/to/source:/input" \
   -v "/path/to/output:/output" \
-  dante90/syno-compiler:7.3-apollolake \
+  dante90/syno-compiler:7.3 \
   compile-module apollolake
+
+# DSM 7.4 (epyc7003ntb)
+docker run -u $(id -u) --rm -t \
+  -v "/path/to/source:/input" \
+  -v "/path/to/output:/output" \
+  dante90/syno-compiler:7.4 \
+  compile-module epyc7003ntb
 ```
 
 ## 문제 해결
