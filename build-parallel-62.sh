@@ -11,6 +11,14 @@
 #   COMMAND: prepare, build, platforms, all (default: all)
 #   PLATFORM: platform name for single build (default: all)
 
+# Requires bash 4+ for associative arrays. macOS ships bash 3.2, where
+# `declare -A` silently degrades and produces empty version/platform lookups.
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    echo "❌ This script requires bash 4 or newer (found ${BASH_VERSION:-unknown})." >&2
+    echo "   On macOS: brew install bash, then run with the newer bash." >&2
+    exit 1
+fi
+
 CACHE_DIR="cache"
 MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 
@@ -98,13 +106,34 @@ function download_file() {
 
 ###############################################################################
 function prepare_parallel() {
-    echo "🚀 Starting parallel preparation for DSM ${TOOLKIT_VER}"
+    # Optional target platform: "all" (default) or a single platform name.
+    # A single target restricts downloads/verification/Dockerfile to that platform.
+    local target="${1:-all}"
+    local build_list
+    if [ "${target}" = "all" ]; then
+        build_list="${PLATFORM_LIST}"
+    else
+        build_list=""
+        for P in ${PLATFORM_LIST}; do
+            if [ "$(echo ${P} | cut -d':' -f1)" = "${target}" ]; then
+                build_list="${P}"
+                break
+            fi
+        done
+        if [ -z "${build_list}" ]; then
+            echo "❌ Platform '${target}' not found for DSM ${TOOLKIT_VER}" >&2
+            echo "   Available: $(echo ${PLATFORM_LIST} | tr ' ' '\n' | cut -d: -f1 | tr '\n' ' ')" >&2
+            exit 1
+        fi
+    fi
+
+    echo "🚀 Starting parallel preparation for DSM ${TOOLKIT_VER} (scope: ${target})"
     print_info
 
     # Create download job list
     local job_list=()
 
-    for P in ${PLATFORM_LIST}; do
+    for P in ${build_list}; do
         local PLATFORM="$(echo ${P} | cut -d':' -f1)"
 
         # --- Dev toolkit (Synology server) ---
@@ -205,7 +234,7 @@ function prepare_parallel() {
     # Verify all required files exist
     echo "🔍 Verifying required files for DSM ${TOOLKIT_VER}..."
     local missing=0
-    for P in ${PLATFORM_LIST}; do
+    for P in ${build_list}; do
         local plat=$(echo ${P} | cut -d':' -f1)
 
         # Check dev toolkit
@@ -234,19 +263,19 @@ function prepare_parallel() {
     done
     echo ""
 
-    local plat_count=$(echo ${PLATFORM_LIST} | wc -w | tr -d ' ')
+    local plat_count=$(echo ${build_list} | wc -w | tr -d ' ')
     if [ ${missing} -gt 0 ]; then
         echo "❌ Verification failed: ${missing} file(s) missing or empty!"
         exit 1
     else
-        echo "✅ All required files verified (${plat_count} platforms, $((plat_count * 2)) files)"
+        echo "✅ All required files verified (${plat_count} platform(s), $((plat_count * 2)) files)"
     fi
     echo ""
 
     # Generate Dockerfile
     echo "📝 Generating Dockerfile..."
     cp Dockerfile.template Dockerfile
-    sed -i "s|@@@PLATFORMS@@@|${PLATFORM_LIST}|g" Dockerfile
+    sed -i "s|@@@PLATFORMS@@@|${build_list}|g" Dockerfile
     sed -i "s|@@@TOOLKIT_VER@@@|${TOOLKIT_VER}|g" Dockerfile
     sed -i "s|@@@GCCLIB_VER@@@|${GCCLIB_VER}|g" Dockerfile
 }
@@ -291,27 +320,26 @@ print_info
 
 case "${1:-all}" in
     "prepare")
-        prepare_parallel
+        prepare_parallel "${2:-all}"
         ;;
     "build")
         TARGET_PLATFORM="${2:-all}"
         if [ "$TARGET_PLATFORM" = "all" ]; then
-            prepare_parallel
+            prepare_parallel all
             build_image "dante90/syno-compiler:${TOOLKIT_VER}" ""
             if [ "${TAG_LATEST}" = "true" ]; then
                 build_image "dante90/syno-compiler:latest" ""
             fi
         else
-            prepare_parallel
-            build_image "dante90/syno-compiler:${TOOLKIT_VER}-${TARGET_PLATFORM}" \
-                "--build-arg TARGET_PLATFORM=${TARGET_PLATFORM}"
+            prepare_parallel "${TARGET_PLATFORM}"
+            build_image "dante90/syno-compiler:${TOOLKIT_VER}-${TARGET_PLATFORM}" ""
         fi
         ;;
     "platforms")
         list_platforms_json
         ;;
     "all"|*)
-        prepare_parallel
+        prepare_parallel all
         build_image "dante90/syno-compiler:${TOOLKIT_VER}" ""
         if [ "${TAG_LATEST}" = "true" ]; then
             build_image "dante90/syno-compiler:latest" ""

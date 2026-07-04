@@ -49,17 +49,13 @@ on:
         default: false
         type: boolean
       build_method:
-        description: 'Build Method'
+        description: 'Build Method (parallel = one job per platform, sequential = single job)'
         required: true
         default: 'parallel'
         type: choice
         options:
           - 'parallel'
           - 'sequential'
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 env:
   REGISTRY: docker.io
@@ -72,6 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       dsm_version: ${{ steps.resolve.outputs.dsm_version }}
+      platforms_input: ${{ steps.resolve.outputs.platforms_input }}
       platform_matrix: ${{ steps.resolve.outputs.platform_matrix }}
       platform_list: ${{ steps.resolve.outputs.platform_list }}
     steps:
@@ -83,23 +80,34 @@ jobs:
         run: |
           chmod +x build-parallel.sh
           DSM_VER="${{ github.event.inputs.dsm_version || '7.3' }}"
+          PLATFORMS_INPUT="${{ github.event.inputs.platforms || 'all' }}"
           echo "dsm_version=${DSM_VER}" >> $GITHUB_OUTPUT
+          echo "platforms_input=${PLATFORMS_INPUT}" >> $GITHUB_OUTPUT
 
-          # Get platform list as JSON array from the build script
-          MATRIX_JSON=$(./build-parallel.sh "${DSM_VER}" platforms)
+          # Build the matrix from the requested scope:
+          #   all           -> every platform for this DSM version
+          #   <platform>     -> just that one platform
+          if [ "${PLATFORMS_INPUT}" = "all" ]; then
+            MATRIX_JSON=$(./build-parallel.sh "${DSM_VER}" platforms)
+          else
+            MATRIX_JSON="[\"${PLATFORMS_INPUT}\"]"
+          fi
           echo "platform_matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
 
-          # Also output as space-separated list for build-all job
+          # Also output as space-separated list
           PLATFORM_LIST=$(echo "${MATRIX_JSON}" | tr -d '[]"' | tr ',' ' ')
           echo "platform_list=${PLATFORM_LIST}" >> $GITHUB_OUTPUT
 
           echo "DSM Version: ${DSM_VER}"
-          echo "Platforms: ${MATRIX_JSON}"
+          echo "Scope:       ${PLATFORMS_INPUT}"
+          echo "Platforms:   ${MATRIX_JSON}"
 
-  # Matrix job to build platforms in parallel
+  # Matrix job: one job per platform (parallel build method).
+  # The matrix already reflects the requested scope (all platforms or a single one),
+  # so this handles both "all + parallel" and "single platform + parallel".
   build-matrix:
     needs: [setup]
-    if: github.event.inputs.platforms != 'all' && github.event.inputs.build_method == 'parallel'
+    if: ${{ (github.event.inputs.build_method || 'parallel') == 'parallel' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -142,14 +150,11 @@ jobs:
       - name: Make build script executable
         run: chmod +x build-parallel.sh
 
-      - name: Prepare platform-specific build
-        run: |
-          echo "🚀 Building for DSM ${{ needs.setup.outputs.dsm_version }} / platform: ${{ matrix.platform }}"
-          ./build-parallel.sh ${{ needs.setup.outputs.dsm_version }} prepare
-
       - name: Build Docker image for ${{ matrix.platform }}
         run: |
-          export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
+          echo "🚀 Building DSM ${{ needs.setup.outputs.dsm_version }} / platform: ${{ matrix.platform }}"
+          # `build <platform>` downloads only this platform's toolkit and bakes
+          # only this platform into the image (no separate prepare step needed).
           ./build-parallel.sh ${{ needs.setup.outputs.dsm_version }} build ${{ matrix.platform }}
 
       - name: Push to Docker Hub
@@ -160,10 +165,12 @@ jobs:
           docker push ${{ env.IMAGE_NAME }}:${DSM_VER}-${{ matrix.platform }}
           echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}-${{ matrix.platform }}"
 
-  # Single job for all platforms or sequential build
+  # Single job (sequential build method): builds the whole scope in one runner.
+  #   scope = all        -> one fat image tagged :${DSM} (+ :latest if requested)
+  #   scope = <platform> -> one image tagged :${DSM}-${platform}
   build-all:
     needs: [setup]
-    if: github.event.inputs.platforms == 'all' || github.event.inputs.build_method == 'sequential'
+    if: ${{ (github.event.inputs.build_method || 'parallel') == 'sequential' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -202,61 +209,36 @@ jobs:
       - name: Make build script executable
         run: chmod +x build-parallel.sh
 
-      - name: Build all platforms
+      - name: Build (sequential)
         run: |
           DSM_VER="${{ needs.setup.outputs.dsm_version }}"
-          echo "🚀 Building all platforms for DSM ${DSM_VER} with parallel optimization"
+          SCOPE="${{ needs.setup.outputs.platforms_input }}"
           export MAX_PARALLEL_JOBS=6
           export TAG_LATEST=${{ github.event.inputs.tag_latest || 'false' }}
-          ./build-parallel.sh ${DSM_VER} all
+          if [ "${SCOPE}" = "all" ]; then
+            echo "🚀 Building ALL platforms for DSM ${DSM_VER} (fat image)"
+            ./build-parallel.sh ${DSM_VER} all
+          else
+            echo "🚀 Building DSM ${DSM_VER} / platform: ${SCOPE}"
+            ./build-parallel.sh ${DSM_VER} build ${SCOPE}
+          fi
 
       - name: Push to Docker Hub
         if: github.event.inputs.push_to_hub == 'true'
         run: |
           DSM_VER="${{ needs.setup.outputs.dsm_version }}"
-          docker tag dante90/syno-compiler:${DSM_VER} ${{ env.IMAGE_NAME }}:${DSM_VER}
-          docker push ${{ env.IMAGE_NAME }}:${DSM_VER}
-          echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}"
-
-          if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
-            docker tag dante90/syno-compiler:${DSM_VER} ${{ env.IMAGE_NAME }}:latest
-            docker push ${{ env.IMAGE_NAME }}:latest
-            echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
+          SCOPE="${{ needs.setup.outputs.platforms_input }}"
+          if [ "${SCOPE}" = "all" ]; then
+            docker push ${{ env.IMAGE_NAME }}:${DSM_VER}
+            echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}"
+            if [ "${{ github.event.inputs.tag_latest }}" = "true" ]; then
+              docker tag ${{ env.IMAGE_NAME }}:${DSM_VER} ${{ env.IMAGE_NAME }}:latest
+              docker push ${{ env.IMAGE_NAME }}:latest
+              echo "✅ Pushed ${{ env.IMAGE_NAME }}:latest"
+            else
+              echo "ℹ️  Skipping latest tag (tag_latest=false)"
+            fi
           else
-            echo "ℹ️  Skipping latest tag (tag_latest=false)"
+            docker push ${{ env.IMAGE_NAME }}:${DSM_VER}-${SCOPE}
+            echo "✅ Pushed ${{ env.IMAGE_NAME }}:${DSM_VER}-${SCOPE}"
           fi
-
-  # Optional: Multi-arch manifest combining all platform images
-  build-multiarch:
-    if: github.event.inputs.platforms == 'all' && github.event.inputs.push_to_hub == 'true'
-    needs: [setup, build-matrix]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Create and push multi-arch manifest
-        run: |
-          DSM_VER="${{ needs.setup.outputs.dsm_version }}"
-          PLATFORM_LIST="${{ needs.setup.outputs.platform_list }}"
-
-          # Build the imagetools arguments dynamically
-          IMAGES=""
-          for PLAT in ${PLATFORM_LIST}; do
-            IMAGES="${IMAGES} ${{ env.IMAGE_NAME }}:${DSM_VER}-${PLAT}"
-          done
-
-          docker buildx imagetools create \
-            -t ${{ env.IMAGE_NAME }}:${DSM_VER}-multiarch \
-            ${IMAGES}
-
-          echo "✅ Created multi-arch manifest: ${{ env.IMAGE_NAME }}:${DSM_VER}-multiarch"

@@ -3,9 +3,17 @@
 # Parallel Build Script for Synology Compiler
 # Performance optimized version with parallel downloads and builds
 # Usage: ./build-parallel.sh [DSM_VERSION] [COMMAND] [PLATFORM]
-#   DSM_VERSION: 6.2, 7.1, 7.2, or 7.3 (default: from DSM_VERSION env or 7.3)
+#   DSM_VERSION: 6.2, 7.0, 7.1, 7.2, or 7.3 (default: from DSM_VERSION env or 7.3)
 #   COMMAND: prepare, build, all, platforms (default: all)
 #   PLATFORM: platform name for single build (default: all)
+
+# Requires bash 4+ for associative arrays. macOS ships bash 3.2, where
+# `declare -A` silently degrades and produces empty version/platform lookups.
+if [ -z "${BASH_VERSINFO:-}" ] || [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    echo "❌ This script requires bash 4 or newer (found ${BASH_VERSION:-unknown})." >&2
+    echo "   On macOS: brew install bash, then run with the newer bash." >&2
+    exit 1
+fi
 
 CACHE_DIR="cache"
 SERVER="https://global.synologydownload.com"
@@ -65,7 +73,7 @@ function resolve_dsm_version() {
     # Validate version
     if [[ -z "${PLATFORMS[$ver]}" ]]; then
         echo "❌ Unsupported DSM version: ${ver}" >&2
-        echo "   Supported versions: 6.2, 7.1, 7.2, 7.3" >&2
+        echo "   Supported versions: 6.2, 7.0, 7.1, 7.2, 7.3" >&2
         exit 1
     fi
 
@@ -126,12 +134,35 @@ function download_file() {
 
 ###############################################################################
 function prepare_parallel() {
-    echo "🚀 Starting parallel preparation for toolkit version ${TOOLKIT_VER}"
+    # Optional target platform: "all" (default) or a single platform name.
+    # When a single platform is given, only that platform's toolkit/toolchain
+    # is downloaded, verified and baked into the generated Dockerfile — so the
+    # resulting image is truly platform-specific rather than a fat all-in-one.
+    local target="${1:-all}"
+    local build_list
+    if [ "${target}" = "all" ]; then
+        build_list="${PLATFORMS[${TOOLKIT_VER}]}"
+    else
+        build_list=""
+        for P in ${PLATFORMS[${TOOLKIT_VER}]}; do
+            if [ "$(echo ${P} | cut -d':' -f1)" = "${target}" ]; then
+                build_list="${P}"
+                break
+            fi
+        done
+        if [ -z "${build_list}" ]; then
+            echo "❌ Platform '${target}' not found for DSM ${TOOLKIT_VER}" >&2
+            echo "   Available: $(echo ${PLATFORMS[${TOOLKIT_VER}]} | tr ' ' '\n' | cut -d: -f1 | tr '\n' ' ')" >&2
+            exit 1
+        fi
+    fi
+
+    echo "🚀 Starting parallel preparation for toolkit version ${TOOLKIT_VER} (scope: ${target})"
 
     # Create download job list
     local job_list=()
 
-    for P in ${PLATFORMS[${TOOLKIT_VER}]}; do
+    for P in ${build_list}; do
         PLATFORM="`echo ${P} | cut -d':' -f1`"
         KVER="`echo ${P} | cut -d':' -f2`"
 
@@ -228,7 +259,7 @@ function prepare_parallel() {
     # Verify all required files exist
     echo "🔍 Verifying required files for DSM ${TOOLKIT_VER}..."
     local missing=0
-    for P in ${PLATFORMS[${TOOLKIT_VER}]}; do
+    for P in ${build_list}; do
         local plat=$(echo ${P} | cut -d':' -f1)
 
         # Check dev toolkit
@@ -261,14 +292,14 @@ function prepare_parallel() {
         echo "❌ Verification failed: ${missing} file(s) missing or empty!"
         exit 1
     else
-        echo "✅ All required files verified ($(echo ${PLATFORMS[${TOOLKIT_VER}]} | wc -w | tr -d ' ') platforms, $(($(echo ${PLATFORMS[${TOOLKIT_VER}]} | wc -w | tr -d ' ') * 2)) files)"
+        echo "✅ All required files verified ($(echo ${build_list} | wc -w | tr -d ' ') platform(s), $(($(echo ${build_list} | wc -w | tr -d ' ') * 2)) files)"
     fi
     echo ""
 
     # Generate Dockerfile
     echo "📝 Generating Dockerfile..."
     cp Dockerfile.template Dockerfile
-    sed -i "s|@@@PLATFORMS@@@|${PLATFORMS[${TOOLKIT_VER}]}|g" Dockerfile
+    sed -i "s|@@@PLATFORMS@@@|${build_list}|g" Dockerfile
     sed -i "s|@@@TOOLKIT_VER@@@|${TOOLKIT_VER}|g" Dockerfile
     sed -i "s|@@@GCCLIB_VER@@@|${GCCLIB_VER}|g" Dockerfile
 }
@@ -310,7 +341,7 @@ function build_image() {
 
 ###############################################################################
 # Determine DSM version: first arg if it looks like a version, else env/default
-if [[ "${1}" =~ ^7\.[0-9]+$ ]]; then
+if [[ "${1}" =~ ^[0-9]+\.[0-9]+$ ]]; then
     resolve_dsm_version "${1}"
     shift
 else
@@ -319,19 +350,20 @@ fi
 
 case "${1:-all}" in
     "prepare")
-        prepare_parallel
+        # Optional platform scope (default: all)
+        prepare_parallel "${2:-all}"
         ;;
     "build")
         PLATFORM="${2:-all}"
         if [ "$PLATFORM" = "all" ]; then
-            prepare_parallel
+            prepare_parallel all
             build_image "dante90/syno-compiler:${TOOLKIT_VER}" ""
             if [ "${TAG_LATEST}" = "true" ]; then
                 build_image "dante90/syno-compiler:latest" ""
             fi
         else
-            prepare_parallel
-            build_image "dante90/syno-compiler:${TOOLKIT_VER}-${PLATFORM}" "--build-arg TARGET_PLATFORM=${PLATFORM}"
+            prepare_parallel "${PLATFORM}"
+            build_image "dante90/syno-compiler:${TOOLKIT_VER}-${PLATFORM}" ""
         fi
         ;;
     "platforms")
@@ -339,7 +371,7 @@ case "${1:-all}" in
         list_platforms_json
         ;;
     "all"|*)
-        prepare_parallel
+        prepare_parallel all
         build_image "dante90/syno-compiler:${TOOLKIT_VER}" ""
         if [ "${TAG_LATEST}" = "true" ]; then
             build_image "dante90/syno-compiler:latest" ""

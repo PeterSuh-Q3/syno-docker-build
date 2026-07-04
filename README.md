@@ -8,14 +8,19 @@ DSM 7.1 / 7.2 / 7.3 을 워크플로우 실행 시 선택할 수 있습니다.
 ```
 .
 ├── .github/workflows/
-│   └── build-parallel.yml          # GitHub Actions 워크플로우
-├── build-parallel.sh               # 병렬 빌드 스크립트 (메인)
-├── Dockerfile.template             # Dockerfile 템플릿 (빌드 시 생성)
-├── opt/
-│   └── do.sh                       # 컨테이너 엔트리포인트 스크립트
-├── files/                          # 추가 파일 (컨테이너에 복사)
+│   ├── build-parallel.yml          # DSM 7.x GitHub Actions 워크플로우
+│   └── build-6.2.yml               # DSM 6.2 전용 워크플로우
+├── build-parallel.sh               # 병렬 빌드 스크립트 (DSM 7.x, 메인)
+├── build-parallel-62.sh            # 병렬 빌드 스크립트 (DSM 6.2, SourceForge 소스)
+├── Dockerfile.template             # Dockerfile 템플릿 (prepare 시 Dockerfile 로 생성됨)
+├── files/                          # 컨테이너 루트로 복사되는 파일
+│   ├── opt/do.sh                   #   컨테이너 엔트리포인트 스크립트
+│   └── etc/profile.d/login.sh      #   로그인 셸 초기화
 └── cache/                          # 다운로드된 툴체인 캐시 디렉토리
 ```
+
+> `Dockerfile` 은 `build-parallel.sh ... prepare` 실행 시 `Dockerfile.template` 에서
+> 생성됩니다. 빌드 범위(전체/단일 플랫폼)에 따라 포함 플랫폼이 자동으로 결정됩니다.
 
 ## 필수 요구사항
 
@@ -143,32 +148,43 @@ DSM_VERSION=7.2 ./build-parallel.sh all
 ## Docker 이미지 태그 전략
 
 ```
-dante90/syno-compiler:{dsm_version}-{platform}   # 개별 플랫폼 (예: 7.3-broadwell)
-dante90/syno-compiler:{dsm_version}               # 전체 빌드 시
-dante90/syno-compiler:latest                       # 전체 빌드 시
-dante90/syno-compiler:{dsm_version}-multiarch      # multi-arch manifest
+dante90/syno-compiler:{dsm_version}-{platform}   # 단일 플랫폼 이미지 (예: 7.3-broadwell)
+                                                  #   해당 플랫폼 툴체인만 포함 (경량)
+dante90/syno-compiler:{dsm_version}               # 전체 플랫폼 포함 이미지 (fat)
+dante90/syno-compiler:latest                       # 전체 빌드 + tag_latest=true 시
 ```
+
+- **단일 플랫폼 이미지** (`{dsm}-{platform}`): `platforms` 를 특정 플랫폼으로 지정하거나,
+  `parallel` 방식으로 빌드 시 플랫폼별로 생성됩니다. 해당 플랫폼의 툴체인만 담고 있어 작습니다.
+- **전체 이미지** (`{dsm}` / `latest`): `platforms=all` + `build_method=sequential` 로 빌드할 때만
+  생성되며, 모든 플랫폼 툴체인을 포함하는 대용량 이미지입니다. `latest` 는 `tag_latest=true` 일 때만 갱신됩니다.
 
 ## 워크플로우 상세 동작
 
 ```
-1. [setup] DSM 버전 결정 및 플랫폼 매트릭스 동적 생성
-   └─ build-parallel.sh 의 platforms 커맨드로 JSON 배열 출력
-2. [build-matrix / build-all] 플랫폼 빌드
-   a. Checkout 저장소
-   b. Docker Buildx 설정
-   c. Docker Hub 로그인 (Secrets 사용)
-   d. 캐시 복원 (Docker layers + Synology toolkits)
-   e. build-parallel.sh {dsm_version} prepare
-      └─ Synology 아카이브에서 dev toolkit + toolchain 병렬 다운로드
-      └─ 다운로드 파일 목록 및 크기 출력
-      └─ 전체 필수 파일 존재/비어있음 검증 (실패 시 abort)
-      └─ Dockerfile.template → Dockerfile 생성
-   f. build-parallel.sh {dsm_version} build {platform}
-      └─ Docker 이미지 빌드 (alpine:3.19 stage → debian:12-slim final)
-   g. Docker Hub에 태그 및 푸시
-3. [build-multiarch] 전체 빌드 시 multi-arch manifest 생성
+1. [setup] 빌드 범위 결정 및 플랫폼 매트릭스 동적 생성
+   └─ platforms=all  → build-parallel.sh 의 platforms 커맨드로 전체 플랫폼 JSON 출력
+   └─ platforms=단일 → 해당 플랫폼 1개짜리 JSON 매트릭스
+
+2. build_method 에 따라 아래 중 하나만 실행:
+
+   [build-matrix]  (build_method=parallel)   플랫폼별 병렬 잡
+     a. Checkout / Buildx / Docker Hub 로그인 / 캐시 복원
+     b. build-parallel.sh {dsm} build {platform}
+        └─ 해당 플랫폼 dev toolkit + toolchain 만 병렬 다운로드
+        └─ 필수 파일 존재/비어있음 검증 (실패 시 abort)
+        └─ Dockerfile.template → Dockerfile 생성 (해당 플랫폼만)
+        └─ Docker 이미지 빌드 (alpine:3.19 stage → debian:12-slim final)
+     c. Docker Hub에 :{dsm}-{platform} 푸시
+
+   [build-all]     (build_method=sequential)  단일 잡
+     a. Checkout / Buildx / Docker Hub 로그인 / 캐시 복원
+     b. platforms=all  → build-parallel.sh {dsm} all   → :{dsm} (+ latest) 푸시
+        platforms=단일 → build-parallel.sh {dsm} build {platform} → :{dsm}-{platform} 푸시
 ```
+
+> DSM 6.2 는 `build-6.2.yml` + `build-parallel-62.sh` 를 사용합니다 (toolchain 은 SourceForge 에서 받음).
+> 6.2 스크립트는 버전 인자를 받지 않으며 첫 인자가 곧 커맨드입니다 (`platforms`/`build`/`all`).
 
 ## Dockerfile 상세
 
