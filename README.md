@@ -151,9 +151,9 @@ DSM_VERSION=7.2 ./build-parallel.sh all
 | r1000nk | 5.10.55 |
 | v1000nk | 5.10.55 |
 
-### DSM 7.4 (19개 플랫폼, Toolchain 7.4-90075, gcc1220/glibc236)
+### DSM 7.4 (20개 플랫폼, Toolchain 7.4-90075, gcc1220/glibc236)
 
-7.3 전 플랫폼 + `epyc7003` + `epyc7003ntb` (AMD EPYC 7003 시리즈).
+7.3 전 플랫폼 + `epyc7003` + `epyc7003ntb` (AMD EPYC 7003 시리즈) + `icelaked`.
 
 | 플랫폼 | 커널 버전 |
 |--------|-----------|
@@ -176,6 +176,7 @@ DSM_VERSION=7.2 ./build-parallel.sh all
 | v1000nk | 5.10.55 |
 | epyc7003 | 5.10.55 |
 | epyc7003ntb | 5.10.55 |
+| icelaked | 5.10.55 |
 
 ## Docker 이미지 태그 전략
 
