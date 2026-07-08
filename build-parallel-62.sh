@@ -93,7 +93,14 @@ function download_file() {
     local description="$3"
 
     echo "📥 Downloading ${description}..."
-    if curl -L --fail --progress-bar "${url}" -o "${output_file}.tmp"; then
+    # Timeouts + retries so a stalled connection fails fast instead of hanging
+    # the whole parallel batch forever (curl has no default transfer timeout).
+    # --speed-time/--speed-limit: abort if <1KB/s for 60s (stall detection).
+    if curl -L --fail --progress-bar \
+        --connect-timeout 30 --max-time 1800 \
+        --retry 3 --retry-delay 5 --retry-all-errors \
+        --speed-limit 1024 --speed-time 60 \
+        "${url}" -o "${output_file}.tmp"; then
         mv "${output_file}.tmp" "${output_file}"
         echo "✅ ${description} completed"
         return 0
