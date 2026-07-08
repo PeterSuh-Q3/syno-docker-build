@@ -44,6 +44,8 @@ URIS["geminilakenk"]="Intel%20x86%20Linux%20|%20%28geminilakenk%29"
 URIS["v1000nk"]="AMD%20x86%20Linux%20|%20%28v1000nk%29"
 URIS["r1000nk"]="AMD%20x86%20Linux%20|%20%28r1000nk%29"
 URIS["epyc7003ntb"]="AMD%20x86%20Linux%20|%20%28epyc7003ntb%29"
+# Note the doubled "Linux Linux" in the archive directory name (as with epyc7002)
+URIS["epyc7003"]="AMD%20x86%20Linux%20Linux%20|%20%28epyc7003%29"
 
 # Platform definitions per DSM version (platform:kernel_version)
 PLATFORMS["6.2"]="apollolake:4.4.59 avoton:3.10.105 braswell:3.10.105 broadwell:3.10.105 broadwellnk:4.4.59 broadwellntbap:4.4.59 bromolow:3.10.105 cedarview:3.10.105 denverton:4.4.59 geminilake:4.4.59 purley:4.4.59 v1000:4.4.59"
@@ -51,8 +53,8 @@ PLATFORMS["7.0"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell
 PLATFORMS["7.1"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.180 broadwellnkv2:4.4.180 broadwellntbap:4.4.180 bromolow:3.10.108 cedarview:3.10.108 denverton:4.4.180 geminilake:4.4.180 purley:4.4.180 r1000:4.4.180 v1000:4.4.180 epyc7002:5.10.55"
 PLATFORMS["7.2"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
 PLATFORMS["7.3"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55"
-# DSM 7.4: only the epyc7003ntb toolchain has been released (7.4-101151)
-PLATFORMS["7.4"]="epyc7003ntb:5.10.55"
+# DSM 7.4 (toolchain 7.4-90075): full 7.3 platform set + epyc7003 + epyc7003ntb
+PLATFORMS["7.4"]="apollolake:4.4.180 avoton:3.10.108 braswell:3.10.108 broadwell:4.4.180 broadwellnk:4.4.302 broadwellnkv2:4.4.302 broadwellntbap:4.4.302 bromolow:3.10.108 denverton:4.4.302 geminilake:4.4.302 purley:4.4.302 r1000:4.4.302 v1000:4.4.302 epyc7002:5.10.55 geminilakenk:5.10.55 r1000nk:5.10.55 v1000nk:5.10.55 epyc7003:5.10.55 epyc7003ntb:5.10.55"
 
 # Toolchain versions per DSM version
 TOOLCHAIN_VERS["6.2"]="6.1-15284"
@@ -60,7 +62,7 @@ TOOLCHAIN_VERS["7.0"]="7.0-41890"
 TOOLCHAIN_VERS["7.1"]="7.1-42661"
 TOOLCHAIN_VERS["7.2"]="7.2-72806"
 TOOLCHAIN_VERS["7.3"]="7.3-86009"
-TOOLCHAIN_VERS["7.4"]="7.4-101151"
+TOOLCHAIN_VERS["7.4"]="7.4-90075"
 
 # GCC/glibc versions per DSM version
 GCCLIB_VERS["6.2"]="gcc493_glibc220_linaro"

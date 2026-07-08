@@ -151,6 +151,32 @@ DSM_VERSION=7.2 ./build-parallel.sh all
 | r1000nk | 5.10.55 |
 | v1000nk | 5.10.55 |
 
+### DSM 7.4 (19개 플랫폼, Toolchain 7.4-90075, gcc1220/glibc236)
+
+7.3 전 플랫폼 + `epyc7003` + `epyc7003ntb` (AMD EPYC 7003 시리즈).
+
+| 플랫폼 | 커널 버전 |
+|--------|-----------|
+| apollolake | 4.4.180 |
+| avoton | 3.10.108 |
+| braswell | 3.10.108 |
+| broadwell | 4.4.180 |
+| broadwellnk | 4.4.302 |
+| broadwellnkv2 | 4.4.302 |
+| broadwellntbap | 4.4.302 |
+| bromolow | 3.10.108 |
+| denverton | 4.4.302 |
+| geminilake | 4.4.302 |
+| purley | 4.4.302 |
+| r1000 | 4.4.302 |
+| v1000 | 4.4.302 |
+| epyc7002 | 5.10.55 |
+| geminilakenk | 5.10.55 |
+| r1000nk | 5.10.55 |
+| v1000nk | 5.10.55 |
+| epyc7003 | 5.10.55 |
+| epyc7003ntb | 5.10.55 |
+
 ## Docker 이미지 태그 전략
 
 **게시되는 태그는 DSM 버전당 하나의 fat 이미지뿐입니다.** 이미지 안에 해당 DSM 의 모든
